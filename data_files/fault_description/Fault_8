@@ -1,0 +1,24 @@
+# Type: scattered data
+# Version: 6
+# Description: No description
+# Format: free
+# Field: 1 x
+# Field: 2 y
+# Field: 3 z meters
+# Field: 4 column
+# Field: 5 row
+# Projection: Local Rectangular
+# Units: meters
+# End:
+# Information from grid:
+# Grid_size: 2 x 2
+# Grid_space: 319081.361969,320739.310206,376253.549337,375989.643042
+# Scattered data: Not_available
+# Z_field: z
+# Vertical_faults: Not_available
+# History: No history
+# Z_units: meters
+319081.361969 376253.549337 -20.980433 1 1
+320772.740933 375953.670890 -31.379069 2 1
+319048.007960 376289.438940 4499.995886 1 2
+320739.310206 375989.643042 4499.995886 2 2
