@@ -515,7 +515,7 @@ class RN34SimulationData:
                     permeability.values[-1, -1]
                     * cz
                     * pp.GRAVITY_ACCELERATION
-                    * pp.Water().density
+                    * pp.Water().density()
                     / self.force_scale
                 )
 
