@@ -414,8 +414,9 @@ class RN34SimulationData:
 
             # Hydrostatic pressure, given by \rho g z, but divided but the scaling of
             # the scalar variable
-            values[lateral_sides] = (
-                fz * pp.Water().density * pp.GRAVITY_ACCELERATION / self.scalar_scale
+            for side in lateral_sides:
+                values[side] = (
+                fz[side] * pp.Water().density() * pp.GRAVITY_ACCELERATION / self.force_scale
             )
             return values
 
