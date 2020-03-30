@@ -416,8 +416,12 @@ class RN34SimulationData:
             # the scalar variable
             for side in lateral_sides:
                 values[side] = (
-                fz[side] * pp.Water().density() * pp.GRAVITY_ACCELERATION / self.force_scale
-            )
+                    fz[side]
+                    * pp.Water().density()
+                    * pp.GRAVITY_ACCELERATION
+                    * permeability.values[-1, -1]
+                    / self.force_scale
+                )
             return values
 
     def set_flow_parameters(self, gb, gravity=True, **kwargs):
