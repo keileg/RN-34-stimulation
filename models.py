@@ -549,7 +549,10 @@ class RN34SimulationData:
                 # High permeability out of the injection fracture
                 # This will not apply to the intersection between fractures 1 and 5,
                 # since this is covered in the first if
-                g_l.dim == 2 and g_l.frac_num == 1 or g_h.dim == 2 and g_h.frac_num == 1
+                g_l.dim == 2
+                and g_l.frac_num == 1
+                or g_h.dim == 2
+                and g_h.frac_num == 1
             ):
                 kn = normal_diffusivity * np.ones(mg.num_cells)
             else:
@@ -567,7 +570,7 @@ class RN34SimulationData:
         well_path = self._read_well_path()
         well_path[:, 5:7] -= self._well_coordinate_surface()[:2]
 
-        # Set the leakage point to 2500 meters, this corresponds to the region with 
+        # Set the leakage point to 2500 meters, this corresponds to the region with
         # highest probability of leakage, according to televiewer imaging.
         z_coords_leakage_points = np.array([2500])
 
@@ -706,10 +709,7 @@ class RN34SimulationData:
                     g,
                     d,
                     self.mechanics_parameter_key,
-                    {
-                        "friction_coefficient": friction,
-                        "time_step": self.time_step,
-                    },
+                    {"friction_coefficient": friction, "time_step": self.time_step},
                 )
 
         for _, d in gb.edges():
@@ -725,7 +725,7 @@ class FlowModel:
 
         z_coord = params["z_coordinates"]
         fracture_files = params["fracture_files"]
-        
+
         # Time step size
         self.time_step = 150 * pp.SECOND
 
@@ -812,7 +812,7 @@ class FlowModel:
 
         for time_step in range(self.observation_time.size - 1):
 
-            # Sub time interval, between two time stamps where the pressure value is 
+            # Sub time interval, between two time stamps where the pressure value is
             # available.
             # This is in part motivated by the (currently not used) approach of an
             # automatic calibration of model parameters
@@ -820,7 +820,7 @@ class FlowModel:
                 self.observation_time[time_step_counter + 1]
                 - self.observation_time[time_step_counter]
             )
-            
+
             # Adjust the injection source strength. This will in practice switch off
             # the source at the right time.
             self.rhs_source *= 0
@@ -1037,7 +1037,7 @@ class FlowModel:
         while t <= (end_time + 0.01 * dt):
             # Right hand side is formed by the sources and the accumulation term
             rhs = self.rhs_source + self.A_terms[accumulation_term_flow] * pressure
-            
+
             # Left hand side is constant, use the precomputed matrix factorization
             pressure = self.pressure_solve(rhs)
 
@@ -1190,7 +1190,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
                     return vec[self.Nd - 1 :: self.Nd]
 
                 max_jump = 0
-                
+
                 for ge, de in self.contact_exporter.gb:
                     if ge.frac_num == g.frac_num:
 
@@ -1231,7 +1231,9 @@ class BiotMechanicsModel(ContactMechanicsBiot):
                         de[pp.STATE]["contact_force_y"] = global_force[1 :: self.Nd]
                         de[pp.STATE]["contact_force_z"] = global_force[2 :: self.Nd]
 
-                print(f"\n Fracture number {g.frac_num}. Max tangential jump {max_jump}\n")
+                print(
+                    f"\n Fracture number {g.frac_num}. Max tangential jump {max_jump}\n"
+                )
 
             self.contact_exporter.write_vtk(
                 data=[
@@ -1321,7 +1323,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
     def store_contact_state(
         self, prefix=None, mortar_displacement=None, contact_force=None
     ):
-        # Store various information on the contact state, in a format that is well 
+        # Store various information on the contact state, in a format that is well
         # suited for visualization.
         if prefix is None:
             prefix = ""
@@ -1353,7 +1355,6 @@ class BiotMechanicsModel(ContactMechanicsBiot):
 
             d_l[pp.STATE][prefix + "displacement_state"] = displacement_jump
             d_l[pp.STATE][prefix + "contact_force_state"] = contact_state
-
 
     def activate_sources(self):
         # injection rates are either 100 or 20 L/s in the stimulation experiment
@@ -1428,7 +1429,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
             return spla.spsolve(A, b)
         elif self.linear_solver == "iterative":
             raise ValueError("Not available.")
-            
+
     def initialize_linear_solver(self):
 
         solver = self.params.get("linear_solver", "direct")
