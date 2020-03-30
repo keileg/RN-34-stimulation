@@ -557,7 +557,7 @@ class RN34SimulationData:
                 # this number is really low.
                 kn = 1e-12 * np.ones(mg.num_cells)
 
-            kn /= pp.Water().dynamic_viscosity()
+            kn /= pp.Water().dynamic_viscosity() * self.force_scale
             pp.initialize_data(
                 mg, d, self.scalar_parameter_key, {"normal_diffusivity": kn}
             )
