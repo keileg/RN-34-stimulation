@@ -415,11 +415,17 @@ class RN34SimulationData:
             # Hydrostatic pressure, given by \rho g z, but divided but the scaling of
             # the scalar variable
             for side in lateral_sides:
+
+                # find the index of the cells adjacent to the faces
+                # The outside of the domain is marked by index -1, so we can take the
+                # max
+                cell_ind = g.cell_face_as_dense()[:, side].max(axis=0)
+
                 values[side] = (
                     fz[side]
                     * pp.Water().density()
                     * pp.GRAVITY_ACCELERATION
-                    * permeability.values[-1, -1]
+                    * permeability[cell_ind]
                     / self.force_scale
                 )
             return values
