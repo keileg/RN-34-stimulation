@@ -390,7 +390,9 @@ class RN34SimulationData:
             bc.is_dir[all_bf] = True
 
             bc.is_neu[bottom] = True
-            bc.is_dir[top] = False
+            bc.is_dir[bottom] = False
+            bc.is_neu[top] = False
+            bc.is_dir[top] = True
 
         # On lower-dimensional grids, the default type, Neumann, is assigned.
         # We could have set Dirichlet conditions on fracutre and intersection faces on
@@ -466,7 +468,6 @@ class RN34SimulationData:
             inverse_viscosity = np.ones(g.num_cells) / pp.Water().dynamic_viscosity()
             unit_vector = np.ones(g.num_cells)
 
-            # Unit aperture for 3d
             if g.dim == 2:
                 # First fracture is assumed to have width of a centimeter
                 if g.frac_num == 0:
@@ -486,6 +487,7 @@ class RN34SimulationData:
                 # Along-line permeability in fracture intersections.
                 aperture = 1 * pp.CENTIMETER
             else:
+                # Unit aperture for 3d
                 aperture = 1
 
             a_dim = np.power(aperture, gb.dim_max() - g.dim)
@@ -514,6 +516,7 @@ class RN34SimulationData:
                     * cz
                     * pp.GRAVITY_ACCELERATION
                     * pp.Water().density
+                    / self.force_scale
                 )
 
             # Set boundary values and conditions
