@@ -8,24 +8,17 @@ Created on Thu Jun  6 08:53:28 2019
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import pickle
 import pdb
 
 # import pandas as pd
-import time
 import logging, sys
-import pickle
 
-import scipy.sparse as sps
 import scipy.sparse.linalg as spla
 import porepy.models.contact_mechanics_model
 from porepy.models.contact_mechanics_biot_model import ContactMechanicsBiot
-from porepy.utils.derived_discretizations import implicit_euler as IE_discretizations
 
 
 import porepy as pp
-import setup_RN34  # , observations_RN34
 import observations_RN34 as observations
 
 
