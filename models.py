@@ -266,28 +266,22 @@ class RN34SimulationData:
         The conditions are Dirichlet at the bottom, Neumann on all other sides.
 
         """
+        if g.dim < gb.dim_max():
+            
+            raise ValueError(
+                "The mechanics problem should only be posed for the matrix domain"
+            )
         all_bf, bottom, *rest = self.domain_boundary_sides(g, gb)
-        # IS: This does not match the method description!! 
-        bc = pp.BoundaryConditionVectorial(g, all_bf, "dir")
-        # Default internal BC is Neumann. We change to Dirichlet for the contact
+        
+        # Default internal BC is Neumann, set Dirichlet at the bottom.
+        bc = pp.BoundaryConditionVectorial(g, bottom, "dir")
+
+        # We change to Dirichlet for the contact
         # problem. I.e., the mortar variable represents the displacement on the
         # fracture faces.
         frac_face = g.tags["fracture_faces"]
         bc.is_neu[:, frac_face] = False
         bc.is_dir[:, frac_face] = True
-
-        if g.dim == gb.dim_max():
-            # Why not bc = pp.BoundaryConditionVectorial(g, bottom, "dir") above?
-            bc.is_neu[:, all_bf] = True
-            bc.is_dir[:, all_bf] = False
-
-            bc.is_neu[:, bottom] = False
-            bc.is_dir[:, bottom] = True
-
-        else:
-            raise ValueError(
-                "The mechanics problem should only be posed for the matrix domain"
-            )
 
         return bc
 
@@ -306,9 +300,8 @@ class RN34SimulationData:
                 "The mechanics problem should only be posed for the matrix domain"
             )
 
-        # The direction is estimated to be ~45 degrees off north. Somehow, the angle
-        # here should be -pi/4
-        # IS: "Somehow" is not good enough. Also, just to be sure: 45 degrees in which direction? (cw or ccw)
+        # The direction is estimated to be ~45 degrees in CW direction off north.
+        # The angle here should be -pi/4
         angle = -np.pi / 4
         # Rotation matrix to the coordinate system of the principal axes
         c = np.cos(angle)
@@ -334,7 +327,8 @@ class RN34SimulationData:
         # Normalized normal vectors.
         # Their direction is not clear from this expression, but this is anyhow handled
         # below.
-        # IS: I think using non-normalized face normals and ommitting the face areas should work equally well.
+        # We could also have dropped face area scaling above, and not normalized vectors,
+        # but the current approach is sometimes more convenient for debugging.
         n = g.face_normals[:, bf]
         nn = np.array([nf / np.linalg.norm(nf) for nf in n.T]).T[:2]
 
@@ -357,7 +351,6 @@ class RN34SimulationData:
         # west, south, east and north boundary faces, we know that the boundary
         # condition should be pointing in the positive x-direction for west and south
         # and negative condition for east and north
-        # IS: This should be equivalent to using only outward pointing normal vectors above, right?
         hit = values[0, west] < 0
         values[:, west[hit]] *= -1
 
@@ -371,8 +364,6 @@ class RN34SimulationData:
         values[:, north[hit]] *= -1
 
         # Enforce free boundary at the top
-        # If the top z coordinate is 0, this could be replaced by
-        # assert np.all(np.isclose(values[:, top], 0))
         values[:, top] = 0
         # Enforce zero displacement at the bottom
         values[:, bottom] = 0
@@ -387,33 +378,24 @@ class RN34SimulationData:
         """
         if g.dim < gb.dim_max():
             all_bf = self.domain_boundary_sides(g, gb)
+            bc = pp.BoundaryCondition(g)
         else:
-            all_bf, bottom, top, *rest = self.domain_boundary_sides(g, gb)
-        bc = pp.BoundaryCondition(g, all_bf, "dir")
+            all_bf, bottom, *rest = self.domain_boundary_sides(g, gb)
+            bc = pp.BoundaryCondition(g, all_bf, "dir")
+            bc.is_neu[bottom] = True
+            bc.is_dir[bottom] = False
 
         # Neumann condition on fracture faces
         frac_face = g.tags["fracture_faces"]
         bc.is_neu[frac_face] = True
-
-        if g.dim == gb.dim_max():
-            # IS: This should already be the case. Isn't it better to assert than to re-enforce just in case?
-            bc.is_neu[all_bf] = False
-            bc.is_dir[all_bf] = True
-
-            bc.is_neu[bottom] = True
-            bc.is_dir[bottom] = False
-            # IS: This is the third time you set the top faces to Dirichlet
-            bc.is_neu[top] = False
-            bc.is_dir[top] = True
-
+    
         # On lower-dimensional grids, the default type, Neumann, is assigned.
-        # We could have set Dirichlet conditions on fracutre and intersection faces on
+        # We could have set Dirichlet conditions on fracture and intersection faces on
         # the surface.
-        # IS: isn't this taken care of above?
 
         return bc
 
-    def bc_values_flow(self, g, gb, gravity, permeability):
+    def bc_values_flow(self, g, gb, gravity):
         """ Set values for flow boundary conditions: 0 at top and bottom, hydrostatic
         at lateral sides.
         """
@@ -421,7 +403,7 @@ class RN34SimulationData:
             # No-flow conditions on the fracture tips.
             # Strictly speaking,
             # IS: values = np.zeros
-            np.zeros(g.num_faces)
+            return np.zeros(g.num_faces)
         else:
             all_bf, bottom, top, *lateral_sides = self.domain_boundary_sides(g, gb)
             fz = g.face_centers[2]
@@ -432,16 +414,10 @@ class RN34SimulationData:
             # the scalar variable
             for side in lateral_sides:
 
-                # find the index of the cells adjacent to the faces
-                # The outside of the domain is marked by index -1, so we can take the
-                # max
-                cell_ind = g.cell_face_as_dense()[:, side].max(axis=0)
-                # IS: Does the permeability enter here?
                 values[side] = (
                     fz[side]
                     * pp.Water().density()
                     * pp.GRAVITY_ACCELERATION
-                    * permeability[cell_ind]
                     / self.force_scale
                 )
             return values
@@ -542,7 +518,7 @@ class RN34SimulationData:
 
             # Set boundary values and conditions
             bc = self.bc_type_flow(g, gb)
-            bc_val = self.bc_values_flow(g, gb, gravity, permeability.values[-1, -1])
+            bc_val = self.bc_values_flow(g, gb, gravity)
 
             # Initialize flow problem
             specified_parameters = {
@@ -672,6 +648,10 @@ class RN34SimulationData:
             "fracture": np.asarray(inj_frac),
             "cell": inj_cell,
         }
+    
+    def biot_alpha(self, g):
+        # This belongs in the rn data class
+        return 1
 
     def set_mechanics_parameters(self, gb):
         """ Set fault friction coefficients, elastic moduli
@@ -684,25 +664,32 @@ class RN34SimulationData:
                 bc = self.bc_type_mech(g, gb)
 
                 bc_val = self.bc_values_mech(g, gb)
-                # IS: I have noe clue about the following 30 lines or so
-                # Estimates of seismic wave speed, see supplementary material for values
+                
+                # The elastic properties of the rock are available through the seismic
+                # velocities, tabularized as functions of depth. 
+                
+                # Depths for velocity estimates
                 speed_depth = np.array([0, -1000, -2000, -3000, -4000, -6000])
+                # Speed of the primary waves, at the depths in speed_depth
                 p_speed = (
                     np.array([3.53, 4.47, 5.16, 5.60, 5.96, 6.50])
                     * pp.KILOMETER
                     / pp.SECOND
                 )
+                # Speed of the secondary waves, at the depths in speed_depth
                 s_speed = (
                     np.array([1.98, 2.51, 2.90, 3.15, 3.35, 3.65])
                     * pp.KILOMETER
                     / pp.SECOND
                 )
 
+                # Cell center depth, we will evaluate the seismic velocity speed there
                 cell_depth = g.cell_centers[2]
 
-                # Convert seismic velocities to Lame parameters, evaluate values at
+                # Convert seismic velocities to Lame parameters, evaluated values at
                 # cell center depths
                 # Zimmermann p333-334
+                
                 # mu = rho * Vs^2
                 mu = self.rock_density * np.power(
                     np.interp(cell_depth, speed_depth[::-1], s_speed[::-1]), 2
@@ -715,6 +702,7 @@ class RN34SimulationData:
                     )
                     - 2 * mu
                 )
+
                 # Scaling of parameters
                 mu /= self.force_scale
                 lmbda /= self.force_scale
@@ -730,6 +718,8 @@ class RN34SimulationData:
                     / self.force_scale
                 )
                 body_force = body_force.ravel(order="F")
+                
+                biot_alpha = self.biot_alpha(g)
                 # Should there be a biot coefficient?
                 pp.initialize_data(
                     g,
@@ -740,6 +730,7 @@ class RN34SimulationData:
                         "bc_values": bc_val,
                         "source": body_force,
                         "fourth_order_tensor": stiffness,
+                        "biot_alpha": biot_alpha,    
                         "max_memory": 7e7,
                     },
                 )
@@ -830,7 +821,8 @@ class FlowModel:
 
         T_full = self.observation_time[0]
         time_step_counter = 0
-        # Why?
+        
+        # Initialize pressure vector
         pressure = 0 * self.rhs_source
 
         if do_export:
@@ -1307,10 +1299,6 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         self.flow_exporter.write_pvd(np.array(self.export_times))
         self.contact_exporter.write_pvd(np.array(self.export_times))
 
-    def biot_alpha(self, g):
-        # This belongs in the rn data class
-        return 1
-
     def set_parameters(self):
         """
         Set the parameters for the simulation.
@@ -1410,16 +1398,12 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         self.high_rate = 100
         self.low_rate = 20
 
-    def create_grid(self):
-        # RN data
-        self.gb = self.sim_data.create_iceland_grid()
-        self.Nd = self.gb.dim_max()
-
     def prepare_simulation(self):
         """ Is run prior to a time-stepping scheme. Use this to initialize
         discretizations, linear solvers etc.
         """
-        self.create_grid()
+        self.gb = self.sim_data.create_iceland_grid()
+        self.Nd = self.gb.dim_max()
         self.well_data = self.sim_data.sources(self.gb)
         self.set_parameters()
         self.assign_variables()
