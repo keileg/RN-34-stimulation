@@ -101,7 +101,8 @@ def load_pressure_observations_march_29():
 #    known_plateau = -30 * pp.MINUTE
     t_prior = np.arange(start_injection, 0, dt)
     p_prior = observed_pressure[-1] + np.power(t_prior - t_prior[0], 0.4) * 1.03
-    
+    # introduce kwargs or optional argument make_figures=False? Possibly also
+    # make dedicated plotting function
     if False:  # Use this to create figure
         t = np.hstack((observed_time[0] - 30 * pp.MINUTE, observed_time[:-20]))
         p = np.hstack((observed_pressure[0], observed_pressure[:-20]))
@@ -219,6 +220,7 @@ def read_seismic_locations(domain_center=None):
     # To do the conversion, put the UTM coordinates in a file and run
     #  $ cs2cs +init=epsg:32627 +to +init=epsg:3057 infile -r > outfile
     # NBNB: The -r option is used to switch between xy and yx ordering
+    # If this is to be run by others, file names must be handled somehow
     xy_file = '/home/eke001/Dropbox/workspace/prosjekter/Eris/seismic_observations/seismic_locations_xy_isnet93.data'
     
     xy = np.genfromtxt(xy_file)[:, :2]
@@ -230,7 +232,7 @@ def read_seismic_locations(domain_center=None):
     
     # negative depth
     z *= -1
-    
+    # Doesn't make sense
     if True or domain_center is None:
         model = models.GeometryData()
         domain_center = model.get_domain_center()

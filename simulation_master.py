@@ -212,5 +212,6 @@ if __name__ == "__main__":
     # parameters set to the same values as used for the stimulation.
     sim.initial_state_poro_mech()
     
-    # Simulate the 
+    # Simulate the
+    # IS: Finish comment
     sim.simulate_march_29()
