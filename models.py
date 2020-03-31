@@ -52,7 +52,7 @@ class RN34SimulationData:
         self.rock_density = 3.0 * pp.KILO / pp.METER ** 3
         self.mechanics_parameter_key = mechanics_parameter_key
         self.scalar_parameter_key = scalar_parameter_key
-        self.force_scale = force_scale
+        self.force_scale = force_scale  # IS: You don't use a length scale?
 
         self.z_coord = z_coord
         self.fracture_files = fracture_files
@@ -255,6 +255,8 @@ class RN34SimulationData:
             east = np.where(side_tags == 3)[0]
             north = np.where(side_tags == 4)[0]
             bottom = np.where(side_tags == 5)[0]
+            # Might I suggest a check that these satisfy some condition on the coordinates?
+            # E.g. assert(np.all(np.isclose(g.face_centers[0,west], 0)))
             return all_bf, bottom, top, west, south, east, north
 
     def bc_type_mech(self, g, gb):
@@ -265,6 +267,7 @@ class RN34SimulationData:
 
         """
         all_bf, bottom, *rest = self.domain_boundary_sides(g, gb)
+        # IS: This does not match the method description!! 
         bc = pp.BoundaryConditionVectorial(g, all_bf, "dir")
         # Default internal BC is Neumann. We change to Dirichlet for the contact
         # problem. I.e., the mortar variable represents the displacement on the
@@ -274,6 +277,7 @@ class RN34SimulationData:
         bc.is_dir[:, frac_face] = True
 
         if g.dim == gb.dim_max():
+            # Why not bc = pp.BoundaryConditionVectorial(g, bottom, "dir") above?
             bc.is_neu[:, all_bf] = True
             bc.is_dir[:, all_bf] = False
 
@@ -304,6 +308,7 @@ class RN34SimulationData:
 
         # The direction is estimated to be ~45 degrees off north. Somehow, the angle
         # here should be -pi/4
+        # IS: "Somehow" is not good enough. Also, just to be sure: 45 degrees in which direction? (cw or ccw)
         angle = -np.pi / 4
         # Rotation matrix to the coordinate system of the principal axes
         c = np.cos(angle)
@@ -319,6 +324,7 @@ class RN34SimulationData:
         # The maximum horizontal stress is assumed to be 1.5 * the lithostatic stress
         max_hor_stress = 3 / 2 * fc_z * self.rock_density * pp.GRAVITY_ACCELERATION
         # The maximum horizontal stress is assumed to be 5/8 * the lithostatic stress
+        # IS  minimum
         min_hor_stress = 5 / 8 * fc_z * self.rock_density * pp.GRAVITY_ACCELERATION
 
         # Stress scaling in the coordinate system of the stress tensor.
@@ -328,6 +334,7 @@ class RN34SimulationData:
         # Normalized normal vectors.
         # Their direction is not clear from this expression, but this is anyhow handled
         # below.
+        # IS: I think using non-normalized face normals and ommitting the face areas should work equally well.
         n = g.face_normals[:, bf]
         nn = np.array([nf / np.linalg.norm(nf) for nf in n.T]).T[:2]
 
@@ -350,6 +357,7 @@ class RN34SimulationData:
         # west, south, east and north boundary faces, we know that the boundary
         # condition should be pointing in the positive x-direction for west and south
         # and negative condition for east and north
+        # IS: This should be equivalent to using only outward pointing normal vectors above, right?
         hit = values[0, west] < 0
         values[:, west[hit]] *= -1
 
@@ -363,6 +371,8 @@ class RN34SimulationData:
         values[:, north[hit]] *= -1
 
         # Enforce free boundary at the top
+        # If the top z coordinate is 0, this could be replaced by
+        # assert np.all(np.isclose(values[:, top], 0))
         values[:, top] = 0
         # Enforce zero displacement at the bottom
         values[:, bottom] = 0
@@ -386,17 +396,20 @@ class RN34SimulationData:
         bc.is_neu[frac_face] = True
 
         if g.dim == gb.dim_max():
+            # IS: This should already be the case. Isn't it better to assert than to re-enforce just in case?
             bc.is_neu[all_bf] = False
             bc.is_dir[all_bf] = True
 
             bc.is_neu[bottom] = True
             bc.is_dir[bottom] = False
+            # IS: This is the third time you set the top faces to Dirichlet
             bc.is_neu[top] = False
             bc.is_dir[top] = True
 
         # On lower-dimensional grids, the default type, Neumann, is assigned.
         # We could have set Dirichlet conditions on fracutre and intersection faces on
         # the surface.
+        # IS: isn't this taken care of above?
 
         return bc
 
@@ -407,6 +420,7 @@ class RN34SimulationData:
         if g.dim < gb.dim_max():
             # No-flow conditions on the fracture tips.
             # Strictly speaking,
+            # IS: values = np.zeros
             np.zeros(g.num_faces)
         else:
             all_bf, bottom, top, *lateral_sides = self.domain_boundary_sides(g, gb)
@@ -422,7 +436,7 @@ class RN34SimulationData:
                 # The outside of the domain is marked by index -1, so we can take the
                 # max
                 cell_ind = g.cell_face_as_dense()[:, side].max(axis=0)
-
+                # IS: Does the permeability enter here?
                 values[side] = (
                     fz[side]
                     * pp.Water().density()
@@ -444,6 +458,7 @@ class RN34SimulationData:
 
         # Permeability between fracuters and matrix - can be considered the permeability
         # in the direction normal to the fracture
+        # IS: Where does this come from?
         normal_diffusivity = 1e-3
 
         # As the simulation tool has no well model, the pressure in the injection cell,
@@ -455,6 +470,7 @@ class RN34SimulationData:
         # in the injection fracture:
         #   Case 0: 3.0e-3
         #
+        # IS: Wouldn't it make more sense to assign this only to the injection cell?
 
         injection_fracture_aperture = 3.0e-3
         other_fracture_aperture = 1e-3
@@ -482,6 +498,10 @@ class RN34SimulationData:
                     aperture = other_fracture_aperture
                 else:  # g.frac_num == 5 - this is the blocking fracture
                     # This fracture is assumed to be blocking - give it a low aperture
+                    # IS: I don' like this at all. The aperture doesn't need to be small just
+                    # because the fracture is blocking. Also, it's really the normal_diffusivity
+                    # which distinguishes the blocking fractures. We need to discuss fracture
+                    # permeabilities
                     aperture = 1 * pp.MICRO * pp.METER
             elif g.dim == 1:
                 # Along-line permeability in fracture intersections.
@@ -507,7 +527,8 @@ class RN34SimulationData:
                 permeability = pp.SecondOrderTensor(inverse_viscosity * kxx)
                 porosity = fracture_porosity * unit_vector
 
-            # Dummy source values. The real value is set in the time loop (see self.iterate())
+            # Dummy source values. The real value is set in the time loop (see self.iterate()).
+            # IS: Why?
             source_vec = np.zeros(g.num_cells)
             if gravity:
                 cz = g.cell_centers[2]
@@ -527,13 +548,13 @@ class RN34SimulationData:
             specified_parameters = {
                 "bc": bc,
                 "bc_val": bc_val,
-                "aperture": aperture,
+                "aperture": aperture, # IS: Where is this used?
                 "source": source_vec,
                 "second_order_tensor": permeability,
-                "porosity": porosity,
+                "porosity": porosity,  # IS: Where is this used?
                 "mass_weight": porosity * water_compressibility * specific_volume,
             }
-
+            # I wouldn't trust the default data. Change to initialize_data
             pp.initialize_default_data(
                 g, d, self.scalar_parameter_key, specified_parameters
             )
@@ -567,6 +588,7 @@ class RN34SimulationData:
             else:
                 # Somewhat low value, not sure what to do here, but the sensitivity to
                 # this number is really low.
+                # IS: Why different from above?
                 kn = 1e-12 * np.ones(mg.num_cells)
 
             kn /= pp.Water().dynamic_viscosity() * self.force_scale
@@ -575,6 +597,14 @@ class RN34SimulationData:
             )
 
     def sources(self, gb):
+        # Minor thing:
+        # def source_scalar(self):
+        #     gb = self.gb
+
+        # I would consider splitting this into one method which identifies (and tags) the
+        # injection cell, and one method (source_scalar) returning the rates. The former
+        # would only be called once (after grid construction, in prepare_simulation or similar).
+        
         # Find fracture grid and cell index of inlet
         well_path = self._read_well_path()
         well_path[:, 5:7] -= self._well_coordinate_surface()[:2]
@@ -654,7 +684,7 @@ class RN34SimulationData:
                 bc = self.bc_type_mech(g, gb)
 
                 bc_val = self.bc_values_mech(g, gb)
-
+                # IS: I have noe clue about the following 30 lines or so
                 # Estimates of seismic wave speed, see supplementary material for values
                 speed_depth = np.array([0, -1000, -2000, -3000, -4000, -6000])
                 p_speed = (
@@ -700,6 +730,7 @@ class RN34SimulationData:
                     / self.force_scale
                 )
                 body_force = body_force.ravel(order="F")
+                # Should there be a biot coefficient?
                 pp.initialize_data(
                     g,
                     d,
@@ -728,8 +759,9 @@ class RN34SimulationData:
 
 class FlowModel:
     """ This is a class dedicated to flow simulations for RN34.
+    Could be stripped down and included in the core.
     """
-
+    
     def __init__(self, params, target_date="march_29"):
 
         z_coord = params["z_coordinates"]
@@ -798,7 +830,7 @@ class FlowModel:
 
         T_full = self.observation_time[0]
         time_step_counter = 0
-
+        # Why?
         pressure = 0 * self.rhs_source
 
         if do_export:
@@ -829,7 +861,9 @@ class FlowModel:
                 self.observation_time[time_step_counter + 1]
                 - self.observation_time[time_step_counter]
             )
-
+            # I would say all of this belongs in a time dependent source_scalar() method.
+            # It is also quite difficult to follow what goes on here. If it is not used,
+            # I suggest to simplify.
             # Adjust the injection source strength. This will in practice switch off
             # the source at the right time.
             self.rhs_source *= 0
@@ -866,16 +900,17 @@ class FlowModel:
         return pressure_in_sources
 
     def calibration_run(self, do_plot=True, **kwargs):
-        # Run the simulation, but also plot the pressure profile in the injection cell,
-        # together with the observed well pressure.
-        # Also compute the mismatch between observed and measured well pressure, used
-        # in (unused) automatic calibration.
+        """ Run the simulation, but also plot the pressure profile in the injection cell,
+        together with the observed well pressure.
+        Also compute the mismatch between observed and measured well pressure, used
+        in (unused) automatic calibration.
+        """
         logger.setLevel(logging.CRITICAL)
 
         pressure_in_sources = self.simulate(**kwargs)
 
         mean_computed_pressure = pressure_in_sources.mean(axis=1)
-
+        # Why first multiply and then divide by bar??
         pressure_increase = (
             self.observed_pressure - self.observed_pressure[0]
         ) * pp.BAR
@@ -903,8 +938,9 @@ class FlowModel:
 
     def _set_variables_discretization(self, use_mpfa=True):
         """ Set keywords that control discretization
-            """
+        """        
         if use_mpfa:
+            # This is too misleading. Rename to xpfa, FV_disc, flux_disc, fa or similar
             tpfa = pp.Mpfa(self.scalar_parameter_key)
         else:
             tpfa = pp.Tpfa(self.scalar_parameter_key)
@@ -975,6 +1011,7 @@ class FlowModel:
     def update_source_parameters(self):
         """ This is mainly needed for (currently unused) functionality to calibrate the
         parameters automatically.
+        Purge if not used
         """
 
         dof_start = np.cumsum(np.hstack((0, self.assembler.full_dof)))
@@ -1080,7 +1117,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         self.time_step = params["time_step"]
         self.scalar_scale = 1e9
         # Scaling coefficients
-        self.length_scale = 1
+        self.length_scale = 1  # Consider using this if you have issues with condition numbers
 
         self.sim_data = RN34SimulationData(
             self.scalar_parameter_key,
@@ -1271,6 +1308,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         self.contact_exporter.write_pvd(np.array(self.export_times))
 
     def biot_alpha(self, g):
+        # This belongs in the rn data class
         return 1
 
     def set_parameters(self):
@@ -1302,7 +1340,8 @@ class BiotMechanicsModel(ContactMechanicsBiot):
             length_cycle = 60 * pp.MINUTE + 30 * pp.MINUTE
 
             rest_time = self.time % length_cycle
-
+            # I'd prefer to move all RN specific stuff to the data class. As mentioned above, this is
+            # just a source_scalar() which depends on self.time
             if self.time > 10 * pp.HOUR:
                 rate = 0
             elif rest_time < 60 * pp.MINUTE:
@@ -1366,11 +1405,13 @@ class BiotMechanicsModel(ContactMechanicsBiot):
             d_l[pp.STATE][prefix + "contact_force_state"] = contact_state
 
     def activate_sources(self):
+        #RN data
         # injection rates are either 100 or 20 L/s in the stimulation experiment
         self.high_rate = 100
         self.low_rate = 20
 
     def create_grid(self):
+        # RN data
         self.gb = self.sim_data.create_iceland_grid()
         self.Nd = self.gb.dim_max()
 
