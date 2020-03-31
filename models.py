@@ -267,12 +267,12 @@ class RN34SimulationData:
 
         """
         if g.dim < gb.dim_max():
-            
+
             raise ValueError(
                 "The mechanics problem should only be posed for the matrix domain"
             )
         all_bf, bottom, *rest = self.domain_boundary_sides(g, gb)
-        
+
         # Default internal BC is Neumann, set Dirichlet at the bottom.
         bc = pp.BoundaryConditionVectorial(g, bottom, "dir")
 
@@ -388,7 +388,7 @@ class RN34SimulationData:
         # Neumann condition on fracture faces
         frac_face = g.tags["fracture_faces"]
         bc.is_neu[frac_face] = True
-    
+
         # On lower-dimensional grids, the default type, Neumann, is assigned.
         # We could have set Dirichlet conditions on fracture and intersection faces on
         # the surface.
@@ -432,10 +432,8 @@ class RN34SimulationData:
 
         fracture_porosity = 1
 
-        # Permeability between fracuters and matrix - can be considered the permeability
-        # in the direction normal to the fracture
-        # IS: Where does this come from?
-        normal_diffusivity = 1e-3
+        # Estimated water compressibility
+        water_compressibility = 5 * 1e-10 / pp.PASCAL * self.force_scale
 
         # As the simulation tool has no well model, the pressure in the injection cell,
         # which is used to calibrate the flow properties, is highly dependent on the
@@ -445,62 +443,134 @@ class RN34SimulationData:
         # Experimentation has shown the following reasonable values for the aperture
         # in the injection fracture:
         #   Case 0: 3.0e-3
-        #
-        # IS: Wouldn't it make more sense to assign this only to the injection cell?
+        #   Case 1: 4.0e-3
+        injection_cell_aperture = 3e-3
 
-        injection_fracture_aperture = 3.0e-3
-        other_fracture_aperture = 1e-3
+        # Map from fracture numbers to aperture values. This controls apertures, thus
+        # permeabilities for all fractures (normal and tangential) and intersections.
+        # Comments:
+        #   1) Fractures 0 and 1 are parallel, and are assumed to have an aperutre of
+        #       1cm.
+        #   2) Fractures 2-4 also have equal, and fairly high permeabilities (they have
+        #       almost equal orientation to the regional stress field).
+        #   3) Fracture 5 is blocking, and should have a low permeability
+        fracture_aperture_map = {
+            0: 1 * pp.CENTIMETER,
+            1: 1 * pp.CENTIMETER,
+            2: 0.8 * pp.CENTIMETER,
+            3: 0.8 * pp.CENTIMETER,
+            4: 0.8 * pp.CENTIMETER,
+            5: 0.1 * pp.MILLI * pp.METER,
+        }
 
-        # Estimated water compressibility
-        water_compressibility = 5 * 1e-10 / pp.PASCAL * self.force_scale
+        # Compute the fracture tangential permeability before the main asignment loop
+        # (next for-loop). The permaebilities are used also for 1d intersection grids.
+        # In this way, we do not run into trouble if a 1d grid is encountered before
+        # its 2d neighbor.
+        # NOTE: There is no scaling with force_scale here.
+        fracture_permeability_map = {}
+
+        for frac_num, aperture in fracture_aperture_map.items():
+            # The specific volume of a fracture equals its aperture
+            specific_volume = aperture
+
+            # Permeability, scaled with specific volume
+            kxx = np.power(aperture, 2) / 12 * specific_volume
+
+            # Store the permeability of this fracture
+            fracture_permeability_map[frac_num] = kxx
+
+        # Store calculated aperture and tangential permeability of intersection grids.
+        # NOTE: for keys in these maps, we will use the intersection grids (contrary
+        # to the corresponding dictionaries for fractures, which use numbers so that
+        # they are available without access to the fracture grid).
+        intersection_aperture_map, intersection_permeability_map = {}, {}
+
+        # Loop over all grids in the bucket, populate the parameter dictionary
         for g, d in gb:
-            # Assign apertures
+
+            # First, assign specific volume and permeability to the grid
 
             # Divide by the dynamic viscosity of water
             inverse_viscosity = np.ones(g.num_cells) / pp.Water().dynamic_viscosity()
             unit_vector = np.ones(g.num_cells)
 
-            if g.dim == 2:
-                # First fracture is assumed to have width of a centimeter
-                if g.frac_num == 0:
-                    aperture = 1 * pp.CENTIMETER
-                elif g.frac_num == 1:
-                    # Injection fracture aperture. See comment above on tuning.
-                    aperture = injection_fracture_aperture
-
-                # Fractures 2-4 have roughly the same orientation, and the aperture is
-                # assumed to be the same.
-                elif g.frac_num > 1 and g.frac_num < 5:
-                    aperture = other_fracture_aperture
-                else:  # g.frac_num == 5 - this is the blocking fracture
-                    # This fracture is assumed to be blocking - give it a low aperture
-                    # IS: I don' like this at all. The aperture doesn't need to be small just
-                    # because the fracture is blocking. Also, it's really the normal_diffusivity
-                    # which distinguishes the blocking fractures. We need to discuss fracture
-                    # permeabilities
-                    aperture = 1 * pp.MICRO * pp.METER
-            elif g.dim == 1:
-                # Along-line permeability in fracture intersections.
-                aperture = 1 * pp.CENTIMETER
-            else:
-                # Unit aperture for 3d
-                aperture = 1
-
-            a_dim = np.power(aperture, gb.dim_max() - g.dim)
-            aperture = np.ones(g.num_cells) * a_dim
-            specific_volume = aperture
-
-            # Use fracture value in the fractures, i.e., the lower dimensional grids
-            if g.dim == gb.dim_max():
+            # Set specific volumes and permeabilities for all objects
+            if g.dim == 3:
+                specific_volume = 1 * unit_vector
+                # Create a permeability tensor that also incorporates the fluid viscosity
                 permeability = pp.SecondOrderTensor(
                     inverse_viscosity * matrix_permeability * self.force_scale
                 )
+
+            elif g.dim == 2:
+
+                # Although we computed the fracture permeabilities in the previous for
+                # loop, we redo calculation here, to treat accurately the aperture
+                # tuning in the injection cell. This feels somehow unnecessary, but
+                # here we go.
+
+                # Pull aperture from the specified values
+                aperture = fracture_aperture_map[g.frac_num] * unit_vector
+
+                if g.frac_num == 1:
+                    # Tune the pressure response by the aperture in the injection fracture
+                    aperture[self.inj_cell] = injection_cell_aperture
+
+                specific_volume = aperture
+
+                # The permeability is quadratic in the aperture, times the specific volume
+                kxx = np.power(aperture, 2) / 12 * specific_volume * self.force_scale
+                # Create a permeability tensor that also incorporates the fluid viscosity
+                permeability = pp.SecondOrderTensor(inverse_viscosity * kxx)
+
+            elif g.dim == 1:
+                # Get the high-dimensional neighbors of g
+                neighbors = gb.node_neighbors(g, only_higher=True)
+
+                # If any of the neighbors has frac_num 5, the intersection is close to
+                # a barrier
+                close_to_barrier = np.any([ng.frac_num == 5 for ng in neighbors])
+
+                # Get apertures of all neighboring fractures
+                aperture_of_high_dim_neigh = [
+                    fracture_aperture_map[ng.frac_num] for ng in neighbors
+                ]
+
+                # Specific volume is the product of neighboring apertures.
+                # This is an approximation unless the fractures intersect in a 90
+                # degree angle, but it should suffice
+                specific_volume = np.prod(aperture_of_high_dim_neigh)
+
+                # The aperture of the 1d line is taken as the side length in a square
+                # with area equal to the specific volume
+                aperture = np.sqrt(specific_volume)
+                if close_to_barrier:
+                    # The permeability is inherited from the barrier fracture, no 5
+                    # Question: Should the specific volume also be from fracture 5?
+                    kxx = np.power(fracture_aperture_map[5], 2) / 12 * specific_volume
+
+                else:
+                    # Standard permeability calculation
+                    kxx = np.power(aperture, 2) / 12 * specific_volume
+
+                # Store calculated intersection aperture
+                intersection_aperture_map[g] = aperture
+                # NOTE: Store permeability without scaling with self.force_scale
+                intersection_permeability_map[g] = kxx
+
+                # force_scaling
+                kxx *= self.force_scale
+                # Create a permeability tensor that also incorporates the fluid viscosity
+                permeability = pp.SecondOrderTensor(inverse_viscosity * kxx)
+
+            # Done with permeability and specific volumes
+
+            # Set porosity in matrix, use unit value for fractures and intersections;
+            # it is not really clear what else do do for g.dim < 3
+            if g.dim == gb.dim_max():
                 porosity = matrix_porosity * unit_vector
             else:
-                # Cubic law for the fractures
-                kxx = np.power(aperture, 3) / 12 * self.force_scale
-                # Strictly speaking, this is the transmissivity
-                permeability = pp.SecondOrderTensor(inverse_viscosity * kxx)
                 porosity = fracture_porosity * unit_vector
 
             # Dummy source values. The real value is set in the time loop (see self.iterate()).
@@ -523,50 +593,48 @@ class RN34SimulationData:
             # Initialize flow problem
             specified_parameters = {
                 "bc": bc,
-                "bc_val": bc_val,
-                "aperture": aperture, # IS: Where is this used?
+                "bc_values": bc_val,
                 "source": source_vec,
                 "second_order_tensor": permeability,
-                "porosity": porosity,  # IS: Where is this used?
                 "mass_weight": porosity * water_compressibility * specific_volume,
             }
-            # I wouldn't trust the default data. Change to initialize_data
-            pp.initialize_default_data(
-                g, d, self.scalar_parameter_key, specified_parameters
-            )
+            pp.initialize_data(g, d, self.scalar_parameter_key, specified_parameters)
+            # End of parameter assignment for this grid
 
-        # Assign coupling permeability
+        # Parameter assignment for the interfaces. This is simpler - we just need to
+        # get the normal permeability.
         for e, d in gb.edges():
             g_l, g_h = gb.nodes_of_edge(e)
 
-            # Detect whether this is an interface to an intersection line, and the
-            # intersection is with the barrier fracture
-            close_to_barrier = False
-            if g_l.dim == 1:
+            mg = d["mortar_grid"]
+            if g_l.dim == 2:
+                # This is a fracture-matrix interface
+                # Set the normal permeability from the tangential one
+                aperture = fracture_aperture_map[g_l.frac_num]
+                kt = fracture_permeability_map[g_l.frac_num]
+                kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
+
+            else:
+                # This is an interface between a fracture intersection and the full
+                # interface.
+                # Detect whether this is an interface to an intersection line, and the
+                # intersection is with the barrier fracture
+                close_to_barrier = False
                 for e2, d2 in gb.edges_of_node(g_l):
                     if gb.nodes_of_edge(e2)[1].frac_num == 5:
                         close_to_barrier = True
 
-            mg = d["mortar_grid"]
-            if close_to_barrier:
-                # Really low value here
-                kn = 1e-18 * np.ones(mg.num_cells)
-            elif (
-                # High permeability out of the injection fracture
-                # This will not apply to the intersection between fractures 1 and 5,
-                # since this is covered in the first if
-                g_l.dim == 2
-                and g_l.frac_num == 1
-                or g_h.dim == 2
-                and g_h.frac_num == 1
-            ):
-                kn = normal_diffusivity * np.ones(mg.num_cells)
-            else:
-                # Somewhat low value, not sure what to do here, but the sensitivity to
-                # this number is really low.
-                # IS: Why different from above?
-                kn = 1e-12 * np.ones(mg.num_cells)
+                if close_to_barrier:
+                    # Use aperture of the low-permeable fracture only
+                    aperture = fracture_aperture_map[5]
+                    kt = fracture_permeability_map[5]
+                    kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
+                else:
+                    aperture = intersection_aperture_map[g_l]
+                    kt = intersection_permeability_map[g_l]
+                    kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
 
+            # Divide normal permeability by viscosity, and scale with force_scale
             kn /= pp.Water().dynamic_viscosity() * self.force_scale
             pp.initialize_data(
                 mg, d, self.scalar_parameter_key, {"normal_diffusivity": kn}
@@ -580,7 +648,7 @@ class RN34SimulationData:
         # I would consider splitting this into one method which identifies (and tags) the
         # injection cell, and one method (source_scalar) returning the rates. The former
         # would only be called once (after grid construction, in prepare_simulation or similar).
-        
+
         # Find fracture grid and cell index of inlet
         well_path = self._read_well_path()
         well_path[:, 5:7] -= self._well_coordinate_surface()[:2]
@@ -643,12 +711,14 @@ class RN34SimulationData:
         inj_rate = np.array([43])
         inj_rate = inj_rate / inj_rate.sum()
 
+        self.inj_cell = inj_cell
+
         return {
             "rate_ratios": inj_rate / inj_rate.sum(),
             "fracture": np.asarray(inj_frac),
             "cell": inj_cell,
         }
-    
+
     def biot_alpha(self, g):
         # This belongs in the rn data class
         return 1
@@ -664,10 +734,10 @@ class RN34SimulationData:
                 bc = self.bc_type_mech(g, gb)
 
                 bc_val = self.bc_values_mech(g, gb)
-                
+
                 # The elastic properties of the rock are available through the seismic
-                # velocities, tabularized as functions of depth. 
-                
+                # velocities, tabularized as functions of depth.
+
                 # Depths for velocity estimates
                 speed_depth = np.array([0, -1000, -2000, -3000, -4000, -6000])
                 # Speed of the primary waves, at the depths in speed_depth
@@ -689,7 +759,7 @@ class RN34SimulationData:
                 # Convert seismic velocities to Lame parameters, evaluated values at
                 # cell center depths
                 # Zimmermann p333-334
-                
+
                 # mu = rho * Vs^2
                 mu = self.rock_density * np.power(
                     np.interp(cell_depth, speed_depth[::-1], s_speed[::-1]), 2
@@ -718,7 +788,7 @@ class RN34SimulationData:
                     / self.force_scale
                 )
                 body_force = body_force.ravel(order="F")
-                
+
                 biot_alpha = self.biot_alpha(g)
                 # Should there be a biot coefficient?
                 pp.initialize_data(
@@ -730,7 +800,7 @@ class RN34SimulationData:
                         "bc_values": bc_val,
                         "source": body_force,
                         "fourth_order_tensor": stiffness,
-                        "biot_alpha": biot_alpha,    
+                        "biot_alpha": biot_alpha,
                         "max_memory": 7e7,
                     },
                 )
@@ -752,7 +822,7 @@ class FlowModel:
     """ This is a class dedicated to flow simulations for RN34.
     Could be stripped down and included in the core.
     """
-    
+
     def __init__(self, params, target_date="march_29"):
 
         z_coord = params["z_coordinates"]
@@ -821,7 +891,7 @@ class FlowModel:
 
         T_full = self.observation_time[0]
         time_step_counter = 0
-        
+
         # Initialize pressure vector
         pressure = 0 * self.rhs_source
 
@@ -930,7 +1000,7 @@ class FlowModel:
 
     def _set_variables_discretization(self, use_mpfa=True):
         """ Set keywords that control discretization
-        """        
+        """
         if use_mpfa:
             # This is too misleading. Rename to xpfa, FV_disc, flux_disc, fa or similar
             tpfa = pp.Mpfa(self.scalar_parameter_key)
@@ -1011,7 +1081,6 @@ class FlowModel:
         num_inj_cells = len(self.well_data["fracture"])
         dof_of_injection_cell = np.zeros(num_inj_cells, dtype=np.int)
         volume_of_injection_cell = 0 * np.zeros(num_inj_cells)
-        aperture_of_injection_cell = 0 * np.zeros(num_inj_cells)
 
         counter = 0
         # Obtain dofs corresponding to the cells of the sources
@@ -1023,17 +1092,12 @@ class FlowModel:
                     cell_ind = self.well_data["cell"][ind]
                     dof_of_injection_cell[counter] = dof_start[block_ind] + cell_ind
                     volume_of_injection_cell[counter] = g.cell_volumes[cell_ind]
-                    data = self.gb.node_props(g)
-                    aperture_of_injection_cell[counter] = data[pp.PARAMETERS]["flow"][
-                        "aperture"
-                    ][0]
                     counter += 1
 
         self.well_data.update(
             {
                 "dof_injection": dof_of_injection_cell,
                 "volume_injection_cell": volume_of_injection_cell,
-                "aperture_injection_cell": aperture_of_injection_cell,
             }
         )
 
@@ -1109,7 +1173,9 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         self.time_step = params["time_step"]
         self.scalar_scale = 1e9
         # Scaling coefficients
-        self.length_scale = 1  # Consider using this if you have issues with condition numbers
+        self.length_scale = (
+            1
+        )  # Consider using this if you have issues with condition numbers
 
         self.sim_data = RN34SimulationData(
             self.scalar_parameter_key,
@@ -1393,7 +1459,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
             d_l[pp.STATE][prefix + "contact_force_state"] = contact_state
 
     def activate_sources(self):
-        #RN data
+        # RN data
         # injection rates are either 100 or 20 L/s in the stimulation experiment
         self.high_rate = 100
         self.low_rate = 20
