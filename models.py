@@ -1003,21 +1003,21 @@ class FlowModel:
         """
         if use_mpfa:
             # This is too misleading. Rename to xpfa, FV_disc, flux_disc, fa or similar
-            tpfa = pp.Mpfa(self.scalar_parameter_key)
+            fv_discr = pp.Mpfa(self.scalar_parameter_key)
         else:
-            tpfa = pp.Tpfa(self.scalar_parameter_key)
+            fv_discr = pp.Tpfa(self.scalar_parameter_key)
 
         source_disrcetization = pp.ScalarSource(self.scalar_parameter_key)
         mass_discretization = pp.MassMatrix(self.scalar_parameter_key)
 
-        edge_discretization = pp.RobinCoupling(self.scalar_parameter_key, tpfa, tpfa)
+        edge_discretization = pp.RobinCoupling(self.scalar_parameter_key, fv_discr, fv_discr)
 
         # Loop over the nodes in the GridBucket, define primary variables and discretization schemes
         for g, d in self.gb:
             d[pp.PRIMARY_VARIABLES] = {self.scalar_variable: {"cells": 1, "faces": 0}}
             d[pp.DISCRETIZATION] = {
                 self.scalar_variable: {
-                    self.diffusion_term_flow: tpfa,
+                    self.diffusion_term_flow: fv_discr,
                     self.source_term_flow: source_disrcetization,
                     self.accumulation_term_flow: mass_discretization,
                 }
