@@ -1392,15 +1392,9 @@ class BiotMechanicsModel(ContactMechanicsBiot):
 
         # Finally, set the parameters for the poro-elastic coupling terms, and the sources
         for g, d in self.gb:
-            d[pp.PARAMETERS][self.scalar_parameter_key]["biot_alpha"] = self.biot_alpha(
-                g
-            )
             d[pp.PARAMETERS][self.scalar_parameter_key]["time_step"] = self.time_step
             if g.dim == self.Nd:
                 # Rock parameters
-                d[pp.PARAMETERS][self.mechanics_parameter_key][
-                    "biot_alpha"
-                ] = self.biot_alpha(g)
                 d[pp.PARAMETERS][self.mechanics_parameter_key][
                     "time_step"
                 ] = self.time_step
