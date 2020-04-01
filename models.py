@@ -409,17 +409,16 @@ class RN34SimulationData:
             fz = g.face_centers[2]
 
             values = np.zeros(g.num_faces)
-
-            # Hydrostatic pressure, given by \rho g z, but divided but the scaling of
-            # the scalar variable
-            for side in lateral_sides:
-
-                values[side] = (
-                    fz[side]
-                    * pp.Water().density()
-                    * pp.GRAVITY_ACCELERATION
-                    / self.force_scale
-                )
+            if gravity:
+                # Hydrostatic pressure, given by \rho g z, but divided but the scaling
+                # of the scalar variable
+                for side in lateral_sides:
+                    values[side] = (
+                        fz[side]
+                        * pp.Water().density()
+                        * pp.GRAVITY_ACCELERATION
+                        / self.force_scale
+                    )
             return values
 
     def set_flow_parameters(self, gb, time_step, gravity=True, **kwargs):
@@ -454,7 +453,7 @@ class RN34SimulationData:
         #   2) Fractures 2-4 also have equal, and fairly high permeabilities (they have
         #       almost equal orientation to the regional stress field).
         #   3) Fracture 5 is less favorably oriented, and is persumed to have lower
-        #       premeability.
+        #       aperture.
         fracture_aperture_map = {
             0: 1 * pp.CENTIMETER,
             1: 1 * pp.CENTIMETER,
@@ -480,7 +479,7 @@ class RN34SimulationData:
 
             if frac_num == BLOCKING_FRACTURE_INDEX:
                 # Explicitly set low permeability for fracture number 5
-                kxx = 1e3 * matrix_permeability
+                kxx = 1e-3 * matrix_permeability * specific_volume
             else:
                 # Permeability, scaled with specific volume
                 kxx = np.power(aperture, 2) / 12 * specific_volume
@@ -521,22 +520,15 @@ class RN34SimulationData:
                 # here we go.
 
                 # Pull aperture from the specified values
-                aperture = fracture_aperture_map[g.frac_num] * unit_vector
+                kxx = fracture_permeability_map[g.frac_num] * unit_vector
 
                 if g.frac_num == 1:
                     # Tune the pressure response by the aperture in the injection fracture
-                    aperture[self.inj_cell] = injection_cell_aperture
+                    specific_volume = fracture_aperture_map[g.frac_num]
+                    kxx[self.inj_cell] = (
+                        np.power(injection_cell_aperture, 2) / 12 * specific_volume
+                    )
 
-                specific_volume = aperture
-
-                if g.frac_num == BLOCKING_FRACTURE_INDEX:
-                    # Explicitly set a low permeability for the blocking fracture
-                    kxx = 1e-10
-                else:
-                    # The permeability is quadratic in the aperture, times the specific
-                    # volume
-                    kxx = np.power(aperture, 2) / 12 * specific_volume
-                # Create a permeability tensor that also incorporates the fluid viscosity
                 permeability = pp.SecondOrderTensor(inverse_viscosity_force_scale * kxx)
 
             elif g.dim == 1:
@@ -562,7 +554,12 @@ class RN34SimulationData:
 
                 if close_to_barrier:
                     # The permeability is inherited from the barrier fracture, no 5
-                    kxx = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
+                    kxx = (
+                        fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
+                         # specific volume of fracture equals its aperture
+                        / fracture_aperture_map[BLOCKING_FRACTURE_INDEX] 
+                        * specific_volume
+                    )
 
                 else:
                     # Standard permeability calculation
@@ -796,7 +793,7 @@ class RN34SimulationData:
 
                 body_force = np.zeros((g.dim, g.num_cells))
                 # Gravitational body force
-                body_force[2] = 0 * (
+                body_force[2] = (
                     self.rock_density
                     * pp.GRAVITY_ACCELERATION
                     * g.cell_volumes
@@ -899,7 +896,9 @@ class FlowModel:
 
         # Set variables, discretization schemes, and parameters
         self._set_variables_discretization()
-        self.sim_data.set_flow_parameters(self.gb, self.time_step, gravity=False, **kwargs)
+        self.sim_data.set_flow_parameters(
+            self.gb, self.time_step, gravity=False, **kwargs
+        )
         # Discretize the full problem
         self.discretize(dt=self.time_step, direct_solver=True)
         # Further treatment of source parameters - needed for legacy reasons
