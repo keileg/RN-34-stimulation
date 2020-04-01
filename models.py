@@ -899,7 +899,7 @@ class FlowModel:
 
         # Set variables, discretization schemes, and parameters
         self._set_variables_discretization()
-        self.sim_data.set_flow_parameters(self.gb, gravity=False, **kwargs)
+        self.sim_data.set_flow_parameters(self.gb, self.time_step, gravity=False, **kwargs)
         # Discretize the full problem
         self.discretize(dt=self.time_step, direct_solver=True)
         # Further treatment of source parameters - needed for legacy reasons
