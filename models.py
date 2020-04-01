@@ -422,7 +422,7 @@ class RN34SimulationData:
                 )
             return values
 
-    def set_flow_parameters(self, gb, gravity=False, **kwargs):
+    def set_flow_parameters(self, gb, time_step, gravity=True, **kwargs):
         """
         Define the permeability, apertures, boundary conditions and sources.
         """
@@ -610,7 +610,8 @@ class RN34SimulationData:
                 "source": source_vec,
                 "second_order_tensor": permeability,
                 "mass_weight": porosity * water_compressibility * specific_volume,
-                "biot_alpha": self.biot_alpha(g)
+                "biot_alpha": self.biot_alpha(g),
+                "time_step": time_step,
             }
             pp.initialize_data(g, d, self.scalar_parameter_key, specified_parameters)
             # End of parameter assignment for this grid
@@ -737,7 +738,7 @@ class RN34SimulationData:
     def biot_alpha(self, g):
         return 1
 
-    def set_mechanics_parameters(self, gb):
+    def set_mechanics_parameters(self, gb, time_step):
         """ Set fault friction coefficients, elastic moduli
         """
         for g, d in gb:
@@ -816,6 +817,7 @@ class RN34SimulationData:
                         "fourth_order_tensor": stiffness,
                         "biot_alpha": biot_alpha,
                         "max_memory": 7e7,
+                        "time_step": time_step,
                     },
                 )
             elif g.dim == 2:
@@ -1386,18 +1388,12 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         Set the parameters for the simulation.
         """
         # Set mechanics parameters
-        self.sim_data.set_mechanics_parameters(self.gb)
+        self.sim_data.set_mechanics_parameters(self.gb, self.time_step)
         # Set flow parameters
-        self.sim_data.set_flow_parameters(self.gb)
+        self.sim_data.set_flow_parameters(self.gb, self.time_step)
 
         # Finally, set the parameters for the poro-elastic coupling terms, and the sources
         for g, d in self.gb:
-            d[pp.PARAMETERS][self.scalar_parameter_key]["time_step"] = self.time_step
-            if g.dim == self.Nd:
-                # Rock parameters
-                d[pp.PARAMETERS][self.mechanics_parameter_key][
-                    "time_step"
-                ] = self.time_step
 
             # Special treatment of the source term
             # The scalar source alternates between high for 60 minutes and low for 30 minutes.
