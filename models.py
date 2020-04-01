@@ -479,10 +479,10 @@ class RN34SimulationData:
 
             if frac_num == BLOCKING_FRACTURE_INDEX:
                 # Explicitly set low permeability for fracture number 5
-                kxx = 1e-3 * matrix_permeability * specific_volume
+                kxx = 1e-3 * matrix_permeability
             else:
                 # Permeability, scaled with specific volume
-                kxx = np.power(aperture, 2) / 12 * specific_volume
+                kxx = np.power(aperture, 2) / 12
 
             # Store the permeability of this fracture
             fracture_permeability_map[frac_num] = kxx
@@ -509,7 +509,9 @@ class RN34SimulationData:
                 specific_volume = 1 * unit_vector
                 # Create a permeability tensor that also incorporates the fluid viscosity
                 permeability = pp.SecondOrderTensor(
-                    inverse_viscosity_force_scale * matrix_permeability
+                    inverse_viscosity_force_scale
+                    * matrix_permeability
+                    * specific_volume
                 )
 
             elif g.dim == 2:
@@ -521,15 +523,16 @@ class RN34SimulationData:
 
                 # Pull aperture from the specified values
                 kxx = fracture_permeability_map[g.frac_num] * unit_vector
+                specific_volume = fracture_aperture_map[g.frac_num] * unit_vector
 
                 if g.frac_num == 1:
                     # Tune the pressure response by the aperture in the injection fracture
-                    specific_volume = fracture_aperture_map[g.frac_num]
-                    kxx[self.inj_cell] = (
-                        np.power(injection_cell_aperture, 2) / 12 * specific_volume
-                    )
+                    kxx[self.inj_cell] = np.power(injection_cell_aperture, 2) / 12
+                    specific_volume[self.inj_cell] = injection_cell_aperture
 
-                permeability = pp.SecondOrderTensor(inverse_viscosity_force_scale * kxx)
+                permeability = pp.SecondOrderTensor(
+                    inverse_viscosity_force_scale * kxx * specific_volume
+                )
 
             elif g.dim == 1:
                 # Get the high-dimensional neighbors of g
@@ -554,16 +557,11 @@ class RN34SimulationData:
 
                 if close_to_barrier:
                     # The permeability is inherited from the barrier fracture, no 5
-                    kxx = (
-                        fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
-                         # specific volume of fracture equals its aperture
-                        / fracture_aperture_map[BLOCKING_FRACTURE_INDEX] 
-                        * specific_volume
-                    )
+                    kxx = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
 
                 else:
                     # Standard permeability calculation
-                    kxx = np.power(aperture, 2) / 12 * specific_volume
+                    kxx = np.power(aperture, 2) / 12
 
                 # Store calculated intersection aperture
                 intersection_aperture_map[g] = aperture
@@ -572,7 +570,9 @@ class RN34SimulationData:
 
                 # Create a permeability tensor that also incorporates the fluid
                 # viscosity and force scaling
-                permeability = pp.SecondOrderTensor(inverse_viscosity_force_scale * kxx)
+                permeability = pp.SecondOrderTensor(
+                    inverse_viscosity_force_scale * kxx * specific_volume
+                )
 
             # Done with permeability and specific volumes
 
@@ -647,8 +647,16 @@ class RN34SimulationData:
                     kt = intersection_permeability_map[g_l]
                     kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
 
+                # The specific volume of the interface (really mortar grid) is
+                # inherited from the fracture.
+                # Specific volume equals aperture for fractures
+                # This is not needed if g_l.dim == 2, since the specific volume of
+                # g_h (the matrix grid) is unity.
+                specific_volume_h = fracture_aperture_map[g_h.frac_num]
+                kn *= specific_volume_h
+
             # Divide normal permeability by viscosity, and scale with force_scale
-            kn /= pp.Water().dynamic_viscosity() * self.force_scale
+            kn *= self.force_scale / pp.Water().dynamic_viscosity()
             pp.initialize_data(
                 mg, d, self.scalar_parameter_key, {"normal_diffusivity": kn}
             )
