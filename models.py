@@ -402,7 +402,6 @@ class RN34SimulationData:
         if g.dim < gb.dim_max():
             # No-flow conditions on the fracture tips.
             # Strictly speaking,
-            # IS: values = np.zeros
             return np.zeros(g.num_faces)
         else:
             all_bf, bottom, top, *lateral_sides = self.domain_boundary_sides(g, gb)
@@ -426,7 +425,7 @@ class RN34SimulationData:
         Define the permeability, apertures, boundary conditions and sources.
         """
         # Values for matrix permeability, porosity
-        matrix_permeability = 1e-12
+        matrix_permeability = 5e-13
         matrix_porosity = 0.1
 
         fracture_porosity = 1
@@ -443,7 +442,7 @@ class RN34SimulationData:
         # in the injection fracture:
         #   Case 0: 3.0e-3
         #   Case 1: 4.0e-3
-        injection_cell_aperture = 1.3e-3
+        injection_cell_aperture = 1e-2
 
         # Map from fracture numbers to aperture values. This controls apertures, thus
         # permeabilities for all fractures (normal and tangential) and intersections.
@@ -455,8 +454,8 @@ class RN34SimulationData:
         #   3) Fracture 5 is less favorably oriented, and is persumed to have lower
         #       aperture.
         fracture_aperture_map = {
-            0: 1 * pp.CENTIMETER,
-            1: 1 * pp.CENTIMETER,
+            0: 1.0 * pp.CENTIMETER,
+            1: 1.0 * pp.CENTIMETER,
             2: 0.8 * pp.CENTIMETER,
             3: 0.8 * pp.CENTIMETER,
             4: 0.8 * pp.CENTIMETER,
@@ -831,7 +830,7 @@ class RN34SimulationData:
                     g,
                     d,
                     self.mechanics_parameter_key,
-                    {"friction_coefficient": friction, "time_step": self.time_step},
+                    {"friction_coefficient": friction, "time_step": time_step},
                 )
 
         for _, d in gb.edges():
