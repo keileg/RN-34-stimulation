@@ -420,7 +420,7 @@ class RN34SimulationData:
                     )
             return values
 
-    def set_flow_parameters(self, gb, time_step, gravity=True, **kwargs):
+    def set_flow_parameters(self, gb, time_step, gravity=False, **kwargs):
         """
         Define the permeability, apertures, boundary conditions and sources.
         """
@@ -469,7 +469,6 @@ class RN34SimulationData:
         # (next for-loop). The permaebilities are used also for 1d intersection grids.
         # In this way, we do not run into trouble if a 1d grid is encountered before
         # its 2d neighbor.
-        # NOTE: There is no scaling with force_scale here.
         fracture_permeability_map = {}
 
         for frac_num, aperture in fracture_aperture_map.items():
@@ -480,7 +479,7 @@ class RN34SimulationData:
                 # Explicitly set low permeability for fracture number 5
                 kxx = 1e-3 * matrix_permeability
             else:
-                # Permeability, scaled with specific volume
+                # Permeability by parallel plate model
                 kxx = np.power(aperture, 2) / 12
 
             # Store the permeability of this fracture
@@ -492,6 +491,8 @@ class RN34SimulationData:
         # they are available without access to the fracture grid).
         intersection_aperture_map, intersection_permeability_map = {}, {}
 
+        fluid = pp.Water()
+
         # Loop over all grids in the bucket, populate the parameter dictionary
         for g, d in gb:
 
@@ -499,7 +500,7 @@ class RN34SimulationData:
 
             # Divide by the dynamic viscosity of water, and introduce force scaling
             inverse_viscosity_force_scale = (
-                np.ones(g.num_cells) / pp.Water().dynamic_viscosity() * self.force_scale
+                np.ones(g.num_cells) / fluid.dynamic_viscosity() * self.force_scale
             )
             unit_vector = np.ones(g.num_cells)
 
@@ -587,12 +588,13 @@ class RN34SimulationData:
             source_vec = np.zeros(g.num_cells)
             if gravity:
                 cz = g.cell_centers[2]
-                source_vec = (
+                source_vec = 0 * (
                     permeability.values[-1, -1]
+                    / self.force_scale
+                    * g.cell_volumes
                     * cz
                     * pp.GRAVITY_ACCELERATION
-                    * pp.Water().density()
-                    / self.force_scale
+                    * fluid.density()
                 )
 
             # Set boundary values and conditions
@@ -655,7 +657,7 @@ class RN34SimulationData:
                 kn *= specific_volume_h
 
             # Divide normal permeability by viscosity, and scale with force_scale
-            kn *= self.force_scale / pp.Water().dynamic_viscosity()
+            kn *= self.force_scale / fluid.dynamic_viscosity()
             pp.initialize_data(
                 mg, d, self.scalar_parameter_key, {"normal_diffusivity": kn}
             )
