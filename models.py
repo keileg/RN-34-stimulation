@@ -457,9 +457,9 @@ class RN34SimulationData:
         fracture_aperture_map = {
             0: 1.0 * pp.CENTIMETER,
             1: 1.0 * pp.CENTIMETER,
-            2: 0.8 * pp.CENTIMETER,
-            3: 0.8 * pp.CENTIMETER,
-            4: 0.8 * pp.CENTIMETER,
+            2: 1.0 * pp.CENTIMETER,
+            3: 1.0 * pp.CENTIMETER,
+            4: 1.0 * pp.CENTIMETER,
             5: 1 * pp.MILLI * pp.METER,
         }
 
