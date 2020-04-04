@@ -314,11 +314,12 @@ class RN34SimulationData:
         # Depth-dependent principal stresses.
         fc = g.face_centers
         fc_z = fc[2, bf]
+        # Values read from Peter-Borie et al Geotherm Energy 2018
+        
         # The maximum horizontal stress is assumed to be 1.5 * the lithostatic stress
-        max_hor_stress = 3 / 2 * fc_z * self.rock_density * pp.GRAVITY_ACCELERATION
-        # The maximum horizontal stress is assumed to be 5/8 * the lithostatic stress
-        # IS  minimum
-        min_hor_stress = 5 / 8 * fc_z * self.rock_density * pp.GRAVITY_ACCELERATION
+        max_hor_stress = 180 / 134 * fc_z * self.rock_density * pp.GRAVITY_ACCELERATION
+        # The minimum horizontal stress is assumed to be 5/8 * the lithostatic stress
+        min_hor_stress = 60 / 134 * fc_z * self.rock_density * pp.GRAVITY_ACCELERATION
 
         # Stress scaling in the coordinate system of the stress tensor.
         # Note: Scale with the face areas
