@@ -137,7 +137,7 @@ class Simulator:
 
         # The injection lasts in total 6 hours. Also do half an hour of relaxation after this
         model_params["end_time"] = 100 * pp.YEAR
-        model_params["time_step"] = model_params["end_time"] / 5
+        model_params["time_step"] = model_params["end_time"] / 2
         model_params["num_loadsteps"] = 1
 
         model_params["export_folder"] = "model_initialization"
