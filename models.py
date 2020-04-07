@@ -257,8 +257,20 @@ class RN34SimulationData:
             east = np.where(side_tags == 3)[0]
             north = np.where(side_tags == 4)[0]
             bottom = np.where(side_tags == 5)[0]
-            # Might I suggest a check that these satisfy some condition on the coordinates?
-            # E.g. assert(np.all(np.isclose(g.face_centers[0,west], 0)))
+
+            # Sanity check on the arrays top, bottom etc.
+            # NOTE: This assumes that the domain is not rotated in
+            # self._grid_by_extrusion
+            xf = g.face_centers
+            domain_corners = self._set_domain_corners()
+
+            assert np.allclose(xf[0, west], domain_corners[0, 0])
+            assert np.allclose(xf[0, east], domain_corners[0, 1])
+            assert np.allclose(xf[1, north], domain_corners[1, 2])
+            assert np.allclose(xf[1, south], domain_corners[1, 0])
+            assert np.allclose(xf[2, top], domain_corners[2, 0])
+            assert np.allclose(xf[2, bottom], domain_corners[2, 4])
+
             return all_bf, bottom, top, west, south, east, north
 
     def bc_type_mech(self, g, gb):
