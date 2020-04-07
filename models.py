@@ -87,9 +87,9 @@ class RN34SimulationData:
         )
 
         # Offset, used to center the domain at the origin
-        lower_left_offset = np.array([-domain_size[0] / 2,
-                                      -domain_size[1] / 2,
-                                      0]).reshape((-1, 1))
+        lower_left_offset = np.array(
+            [-domain_size[0] / 2, -domain_size[1] / 2, 0]
+        ).reshape((-1, 1))
 
         # The domain center is set at 5000, 5000
         self.domain_center = domain_size.reshape((-1, 1)) - lower_left_offset
