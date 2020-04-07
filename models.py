@@ -284,23 +284,10 @@ class RN34SimulationData:
             raise ValueError(
                 "The mechanics problem should only be posed for the matrix domain"
             )
-        all_bf, bottom, top, *rest = self.domain_boundary_sides(g, gb)
-
-        #        pdb.set_trace()
-        xf = g.face_centers
-
-        xf_t = xf[:, top]
-
-        corners = self._set_domain_corners()
-
-        corner_face_ind = []
-        for i in range(4):
-            cc = corners[:, i].reshape((-1, 1))
-            fi = np.argmin(np.sum((xf_t - cc) ** 2, axis=0))
-            corner_face_ind.append(top[fi])
+        all_bf, _, top, *rest = self.domain_boundary_sides(g, gb)
 
         # Default internal BC is Neumann, set Dirichlet at the bottom.
-        bc = pp.BoundaryConditionVectorial(g, np.asarray(corner_face_ind), "dir")
+        bc = pp.BoundaryConditionVectorial(g, np.asarray(top), "dir")
 
         # We change to Dirichlet for the contact
         # problem. I.e., the mortar variable represents the displacement on the
