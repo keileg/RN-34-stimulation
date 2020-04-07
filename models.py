@@ -840,7 +840,7 @@ class RN34SimulationData:
                     },
                 )
             elif g.dim == 2:
-                friction = 0.8 * np.ones(g.num_cells)
+                friction = 0.4 * np.ones(g.num_cells)
                 pp.initialize_data(
                     g,
                     d,
