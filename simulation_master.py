@@ -35,9 +35,9 @@ class Simulator:
         # Case 3 is used for the simulations reported in the paper, however, grids with
         # lower resolution is useful for experimentation runs.
         case = 0
-        
+
         if case == 0:
-            self.z_coord = np.array([0, -1500, -2200, -3000, -4000])
+            self.z_coord = np.array([0, -100, -700, -1500, -2200, -3000, -4000])
         elif case == 1:
             self.z_coord = np.array(
                 [0, -1000, -1500, -1800, -2100, -2400, -2700, -3000, -3500, -4000]
@@ -83,7 +83,7 @@ class Simulator:
                     -4000,
                 ]
             )
-            
+
         # Fractures to include in the simulation.
         self.included_fractures = [
             "Fault_1",
@@ -94,7 +94,6 @@ class Simulator:
             "Fault_8",
         ]
         self.num_fracs = len(self.included_fractures)
-
 
     def simulate_leak_off_test(self, params=None):
         """ Tune the fracture and matrix permeability, as well as matrix porosity
@@ -211,7 +210,6 @@ if __name__ == "__main__":
     # system to steady state, using zero injection rate, but with the remaining
     # parameters set to the same values as used for the stimulation.
     sim.initial_state_poro_mech()
-    
-    # Simulate the
-    # IS: Finish comment
+
+    # Simulate the stimulation event on 29 March 2015
     sim.simulate_march_29()
