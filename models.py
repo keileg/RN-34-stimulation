@@ -341,7 +341,7 @@ class RN34SimulationData:
         fc = g.face_centers
         fc_z = fc[2, bf]
         # Values read from Peter-Borie et al Geotherm Energy 2018
-        
+
         # The maximum horizontal stress is assumed to be 1.5 * the lithostatic stress
         max_hor_stress = 180 / 134 * fc_z * self.rock_density * pp.GRAVITY_ACCELERATION
         # The minimum horizontal stress is assumed to be 5/8 * the lithostatic stress
@@ -431,11 +431,11 @@ class RN34SimulationData:
             # Strictly speaking,
             return np.zeros(g.num_faces)
         else:
-            all_bf, bottom, top, *lateral_sides = self.domain_boundary_sides(g, gb)
-            fz = g.face_centers[2]
-
             values = np.zeros(g.num_faces)
             if gravity:
+                all_bf, bottom, top, *lateral_sides = self.domain_boundary_sides(g, gb)
+                fz = g.face_centers[2]
+
                 # Hydrostatic pressure, given by \rho g z, but divided but the scaling
                 # of the scalar variable
                 for side in lateral_sides:
@@ -617,11 +617,10 @@ class RN34SimulationData:
                 cz = g.cell_centers[2]
                 source_vec = 0 * (
                     permeability.values[-1, -1]
-                    / self.force_scale
+                    / self.force_scale  # This counteracts force_scale in permeability
                     * g.cell_volumes
                     * cz
                     * pp.GRAVITY_ACCELERATION
-                    * fluid.density()
                 )
 
             # Set boundary values and conditions
