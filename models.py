@@ -434,7 +434,7 @@ class RN34SimulationData:
                     )
             return values
 
-    def set_flow_parameters(self, gb, time_step, gravity=False, **kwargs):
+    def set_flow_parameters(self, gb, time_step, gravity=True, **kwargs):
         """
         Define the permeability, apertures, boundary conditions and sources.
         """
@@ -598,16 +598,16 @@ class RN34SimulationData:
                 porosity = fracture_porosity * unit_vector
 
             # Dummy source values. The real value is set in the time loop (see self.iterate()).
-            # IS: Why?
             source_vec = np.zeros(g.num_cells)
             if gravity:
                 cz = g.cell_centers[2]
-                source_vec = 0 * (
+                source_vec = (
                     permeability.values[-1, -1]
                     / self.force_scale  # This counteracts force_scale in permeability
                     * g.cell_volumes
                     * cz
                     * pp.GRAVITY_ACCELERATION
+                    * self.time_step
                 )
 
             # Set boundary values and conditions
