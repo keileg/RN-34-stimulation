@@ -284,10 +284,14 @@ class RN34SimulationData:
             raise ValueError(
                 "The mechanics problem should only be posed for the matrix domain"
             )
-        all_bf, _, top, *rest = self.domain_boundary_sides(g, gb)
+        all_bf, bottom, top, *rest = self.domain_boundary_sides(g, gb)
 
         # Default internal BC is Neumann, set Dirichlet at the bottom.
-        bc = pp.BoundaryConditionVectorial(g, np.asarray(top), "dir")
+        bc = pp.BoundaryConditionVectorial(g)
+
+        # Dirichlet condition at the top. Not sure about this part.
+        bc.is_neu[:, top] = False
+        bc.is_dir[:, top] = True
 
         # We change to Dirichlet for the contact
         # problem. I.e., the mortar variable represents the displacement on the
@@ -379,9 +383,19 @@ class RN34SimulationData:
 
         # Enforce free boundary at the top
         values[:, top] = 0
-        # Enforce zero displacement at the bottom
+        # Zero conditions in x and y directions at the bottom
         values[:, bottom] = 0
 
+        # Lithostatic stress in the z-directions.
+        values[2, bottom] = (
+            pp.GRAVITY_ACCELERATION
+            * self.rock_density
+            * fc[2, bottom]
+            * g.face_areas[bottom]
+            / self.force_scale
+        )
+        # Lithostatic pressure should be downwards
+        assert np.all(values[2, bottom] < 0)
         # Reshape according to PorePy convention
         values = values.ravel("F")
         return values
@@ -426,7 +440,8 @@ class RN34SimulationData:
                 # Hydrostatic pressure, given by \rho g z, but divided but the scaling
                 # of the scalar variable
                 for side in lateral_sides:
-                    values[side] = (
+                    # Minus sign to enforce increasing pressure with increasing depth
+                    values[side] = -(
                         fz[side]
                         * pp.Water().density()
                         * pp.GRAVITY_ACCELERATION
@@ -434,7 +449,7 @@ class RN34SimulationData:
                     )
             return values
 
-    def set_flow_parameters(self, gb, time_step, gravity=True, **kwargs):
+    def set_flow_parameters(self, gb, time_step, gravity=False, **kwargs):
         """
         Define the permeability, apertures, boundary conditions and sources.
         """
@@ -529,12 +544,6 @@ class RN34SimulationData:
                 )
 
             elif g.dim == 2:
-
-                # Although we computed the fracture permeabilities in the previous for
-                # loop, we redo calculation here, to treat accurately the aperture
-                # tuning in the injection cell. This feels somehow unnecessary, but
-                # here we go.
-
                 # Pull aperture from the specified values
                 kxx = fracture_permeability_map[g.frac_num] * unit_vector
                 specific_volume = fracture_aperture_map[g.frac_num] * unit_vector
@@ -600,14 +609,13 @@ class RN34SimulationData:
             # Dummy source values. The real value is set in the time loop (see self.iterate()).
             source_vec = np.zeros(g.num_cells)
             if gravity:
-                cz = g.cell_centers[2]
                 source_vec = (
                     permeability.values[-1, -1]
                     / self.force_scale  # This counteracts force_scale in permeability
                     * g.cell_volumes
-                    * cz
                     * pp.GRAVITY_ACCELERATION
                     * self.time_step
+                    * fluid.density()
                 )
 
             # Set boundary values and conditions
