@@ -763,7 +763,7 @@ class RN34SimulationData:
         }
 
     def biot_alpha(self, g):
-        return 1
+        return 0.8
 
     def set_mechanics_parameters(self, gb, time_step):
         """ Set fault friction coefficients, elastic moduli
