@@ -37,10 +37,10 @@ class Simulator:
         case = 0
 
         if case == 0:
-            self.z_coord = np.array([0, -100, -700, -1500, -2200, -3000, -4000])
+            self.z_coord = np.array([0, -1500, -2200, -3000, -4000, -6000])
         elif case == 1:
             self.z_coord = np.array(
-                [0, -1000, -1500, -1800, -2100, -2400, -2700, -3000, -3500, -4000]
+                [0, -1000, -1500, -1800, -2100, -2400, -2700, -3000, -3500, -4000, -4500, -5000, -6000, -7000]
             )
         elif case == 2:
             self.z_coord = np.array(
@@ -113,7 +113,7 @@ class Simulator:
         # Create a flow
         solver = FlowModel(self._standard_parameters())
 
-        target = solver.calibration_run(return_values=True)
+        target = solver.calibration_run(return_values=True, do_plot=False, do_export=False)
         print("Found the target value to be:", target)
 
         logger.setLevel(logging.INFO)
@@ -196,7 +196,7 @@ if __name__ == "__main__":
 
     # Initialize simulation object
     sim = Simulator()
-
+    
     # Simulate the leak-off test on the morning of 29 March 2015. This is mainly done
     # to check that the difference in pressure (measured at the injection cell, which
     # is presumed to be proportional to the observed pressure at the measurement point
