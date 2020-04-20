@@ -1559,6 +1559,14 @@ class BiotMechanicsModel(ContactMechanicsBiot):
                 np.max(np.sum(np.abs(A), axis=1)), np.min(np.sum(np.abs(A), axis=1))
             )
         )
+        import time
+
+        tic = time.time()
+        A.indices = A.indices.astype(np.int64)
+        A.indptr = A.indptr.astype(np.int64)
+        x = spla.spsolve(A, b, use_umfpack=True)
+        print(f"UMFPACK time: {time.time() - tic}")
+        return x
 
         if self.linear_solver == "direct":
             return spla.spsolve(A, b)
