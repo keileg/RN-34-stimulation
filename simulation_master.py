@@ -34,18 +34,19 @@ class Simulator:
         # the grid is refined around the depths where injection takes place.
         # Case 3 is used for the simulations reported in the paper, however, grids with
         # lower resolution is useful for experimentation runs.
-        case = 0
+        case = 2
 
         if case == 0:
-            self.z_coord = np.array([0, -1500, -2200, -3000, -4000, -6000])
+            self.z_coord = np.array([0, -100, -1500, -2200, -3000, -4000])
         elif case == 1:
             self.z_coord = np.array(
-                [0, -1000, -1500, -1800, -2100, -2400, -2700, -3000, -3500, -4000, -4500, -5000, -6000, -7000]
+                [0, -1000, -1500, -1800, -2100, -2400, -2700, -3000, -3500, -4000, -4500, -5000, -6000]
             )
         elif case == 2:
             self.z_coord = np.array(
                 [
                     0,
+                    -100,
                     -1000,
                     -1700,
                     -2100,
@@ -135,8 +136,8 @@ class Simulator:
         # model_params["initial_mechanics_state"] = self.initial_mechanics_state
 
         # The injection lasts in total 6 hours. Also do half an hour of relaxation after this
-        model_params["end_time"] = 100 * pp.YEAR
-        model_params["time_step"] = model_params["end_time"] / 2
+        model_params["end_time"] = 1000 * pp.YEAR
+        model_params["time_step"] = model_params["end_time"] / 5
         model_params["num_loadsteps"] = 1
 
         model_params["export_folder"] = "model_initialization"
@@ -145,7 +146,7 @@ class Simulator:
         poro_model = BiotMechanicsModel(model_params)
 
         pp.run_time_dependent_model(
-            poro_model, {"max_iterations": 500, "nl_convergence_tol": 1e-10}
+            poro_model, {"max_iterations": 500, "nl_convergence_tol": 1e-14}
         )
         poro_model.store_contact_state("reference")
         poro_model.store_contact_state("previous")
@@ -181,7 +182,7 @@ class Simulator:
             {
                 "prepare_simulation": False,
                 "max_iterations": 100,
-                "nl_convergence_tol": 1e-10,
+                "nl_convergence_tol": 1e-14,
             },
         )
 
