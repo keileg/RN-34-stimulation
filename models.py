@@ -387,7 +387,7 @@ class RN34SimulationData:
         values[:, bottom] = 0
 
         # Lithostatic stress in the z-directions.
-        values[2, bottom] = (
+        values[2, bottom] = -(
             pp.GRAVITY_ACCELERATION
             * self.rock_density
             * fc[2, bottom]
@@ -395,7 +395,7 @@ class RN34SimulationData:
             / self.force_scale
         )
         # Lithostatic pressure should be downwards
-        assert np.all(values[2, bottom] < 0)
+        assert np.all(values[2, bottom] > 0)
         # Reshape according to PorePy convention
         values = values.ravel("F")
         return values
@@ -1564,8 +1564,9 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         tic = time.time()
         A.indices = A.indices.astype(np.int64)
         A.indptr = A.indptr.astype(np.int64)
+
         x = spla.spsolve(A, b, use_umfpack=True)
-        print(f"UMFPACK time: {time.time() - tic}")
+        print(f"      UMFPACK time: {time.time() - tic}\n\n")
         return x
 
         if self.linear_solver == "direct":
