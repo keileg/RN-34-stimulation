@@ -449,7 +449,7 @@ class RN34SimulationData:
                     )
             return values
 
-    def set_flow_parameters(self, gb, time_step, gravity=False, **kwargs):
+    def set_flow_parameters(self, gb, time_step, gravity=True, **kwargs):
         """
         Define the permeability, apertures, boundary conditions and sources.
         """
@@ -607,15 +607,12 @@ class RN34SimulationData:
                 porosity = fracture_porosity * unit_vector
 
             # Dummy source values. The real value is set in the time loop (see self.iterate()).
-            source_vec = np.zeros(g.num_cells)
+            source = np.zeros(g.num_cells)
+            Nd = gb.dim_max()
+            vector_source = np.zeros(g.num_cells * Nd)
             if gravity:
-                source_vec = (
-                    permeability.values[-1, -1]
-                    / self.force_scale  # This counteracts force_scale in permeability
-                    * g.cell_volumes
-                    * pp.GRAVITY_ACCELERATION
-                    * self.time_step
-                    * fluid.density()
+                vector_source[Nd - 1 :: Nd] = (
+                    -pp.GRAVITY_ACCELERATION * fluid.density() * self.time_step
                 )
 
             # Set boundary values and conditions
@@ -626,11 +623,13 @@ class RN34SimulationData:
             specified_parameters = {
                 "bc": bc,
                 "bc_values": bc_val,
-                "source": source_vec,
+                "source": source,
                 "second_order_tensor": permeability,
                 "mass_weight": porosity * water_compressibility * specific_volume,
                 "biot_alpha": self.biot_alpha(g),
                 "time_step": time_step,
+                "ambient_dimension": Nd,
+                "vector_source": vector_source,
             }
             pp.initialize_data(g, d, self.scalar_parameter_key, specified_parameters)
             # End of parameter assignment for this grid
