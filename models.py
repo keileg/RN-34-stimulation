@@ -292,6 +292,12 @@ class RN34SimulationData:
         # Dirichlet condition at the top. Not sure about this part.
         bc.is_neu[:, top] = False
         bc.is_dir[:, top] = True
+        fix_ind = np.argsort(np.sum(g.face_centers[:, top] ** 2, axis=0))[:2]
+
+        bc.is_neu[:2, top[fix_ind]] = False
+        bc.is_dir[:2, top[fix_ind]] = True
+        #        import pdb
+        #        pdb.set_trace()
 
         # We change to Dirichlet for the contact
         # problem. I.e., the mortar variable represents the displacement on the
