@@ -1111,8 +1111,8 @@ class FlowModel:
         diffusion_term_flow = self.diffusion_term_flow + "_" + self.scalar_variable
 
         # Build matrix
-        lhs = A_terms[accumulation_term_flow] + dt * (
-            A_terms[coupling_operator_term_flow] + A_terms[diffusion_term_flow]
+        lhs = (A_terms[accumulation_term_flow] + 
+            A_terms[coupling_operator_term_flow] +dt * A_terms[diffusion_term_flow]
         )
         lhs = lhs.tocsc()
         rhs_source = dt * b[source_term_flow]
