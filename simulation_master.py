@@ -34,7 +34,7 @@ class Simulator:
         # the grid is refined around the depths where injection takes place.
         # Case 3 is used for the simulations reported in the paper, however, grids with
         # lower resolution is useful for experimentation runs.
-        case = 2
+        case = 0
 
         if case == 0:
             self.z_coord = np.array([0, -100, -1500, -2200, -3000, -4000])
@@ -47,8 +47,12 @@ class Simulator:
                 [
                     0,
                     -100,
-                    -1000,
+                    -500,
+                    -800,
+                    -1100,
+                    -1400,
                     -1700,
+                    -1900,
                     -2100,
                     -2200,
                     -2300,
