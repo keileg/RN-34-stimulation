@@ -460,7 +460,7 @@ class RN34SimulationData:
         Define the permeability, apertures, boundary conditions and sources.
         """
         # Values for matrix permeability, porosity
-        matrix_permeability = 5e-13
+        matrix_permeability = 1e-13
         matrix_porosity = 0.1
 
         fracture_porosity = 1
@@ -905,9 +905,13 @@ class FlowModel:
         # This is used for plotting of observed data, but also to control the injection
         # strength (on and off)
         if target_date == "apr_7":
-            inj_rate, length_periods, observed_pressure, observed_time, num_data_points_periods = (
-                observations.load_pressure_observations_april_7()
-            )
+            (
+                inj_rate,
+                length_periods,
+                observed_pressure,
+                observed_time,
+                num_data_points_periods,
+            ) = observations.load_pressure_observations_april_7()
         elif target_date == "march_29":
             t, p = observations.load_pressure_observations_march_29()
         else:
@@ -1226,8 +1230,8 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         self.scalar_scale = 1e9
         # Scaling coefficients
         self.length_scale = (
-            1
-        )  # Consider using this if you have issues with condition numbers
+            1  # Consider using this if you have issues with condition numbers
+        )
 
         self.sim_data = RN34SimulationData(
             self.scalar_parameter_key,
@@ -1571,7 +1575,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         A.indptr = A.indptr.astype(np.int64)
 
         x = spla.spsolve(A, b, use_umfpack=True)
-        print(f"      UMFPACK time: {time.time() - tic}\n\n")
+        print(f"      UMFPACK time: {time.time() - tic}\n")
         return x
 
         if self.linear_solver == "direct":
