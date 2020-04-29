@@ -839,7 +839,7 @@ class RN34SimulationData:
                 )
                 body_force = body_force.ravel(order="F")
 
-                biot_alpha = self.biot_alpha(g)
+                biot_alpha = self.biot_alpha(gb, g)
                 # Should there be a biot coefficient?
                 pp.initialize_data(
                     g,
