@@ -618,7 +618,7 @@ class RN34SimulationData:
             vector_source = np.zeros(g.num_cells * Nd)
             if gravity:
                 vector_source[Nd - 1 :: Nd] = (
-                    -pp.GRAVITY_ACCELERATION * fluid.density() * self.time_step
+                    -pp.GRAVITY_ACCELERATION * fluid.density() / self.force_scale
                 )
 
             # Set boundary values and conditions
