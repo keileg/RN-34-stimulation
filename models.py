@@ -452,6 +452,7 @@ class RN34SimulationData:
                         * pp.Water().density()
                         * pp.GRAVITY_ACCELERATION
                         / self.force_scale
+                        / self.time_step
                     )
             return values
 
