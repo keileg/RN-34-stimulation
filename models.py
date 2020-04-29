@@ -738,8 +738,8 @@ class RN34SimulationData:
             for g, _ in gb:
                 if g.dim != 2:
                     continue
-                # We have decided to put the injection point at fracture number 2
-                # (1-offset, thus frac_num=1), so disregard other fractures.
+                # We have decided to put the injection point at fracture number 5
+                # (1-offset, thus frac_num=4), so disregard other fractures.
                 # However, we may also use a single fracture for debugging purposes -
                 # if so, we need to put the source in that fracture.
                 if len(gb.grids_of_dimension(2)) > 1 and g.frac_num != 4:
