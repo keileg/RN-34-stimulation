@@ -172,7 +172,7 @@ class Simulator:
         time_step = 15 * pp.MINUTE
 
         poro_model.time = 0
-        poro_model.time_step = time_step
+        poro_model.set_time_step(time_step)
         poro_model.init_time_step = time_step
         poro_model.end_time = 10.5 * pp.HOUR
 

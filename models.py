@@ -1426,6 +1426,10 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         self.flow_exporter.write_pvd(np.array(self.export_times))
         self.contact_exporter.write_pvd(np.array(self.export_times))
 
+    def set_time_step(self, ts):
+        self.time_step = ts
+        self.sim_data.time_step = ts
+
     def set_parameters(self):
         """
         Set the parameters for the simulation.
