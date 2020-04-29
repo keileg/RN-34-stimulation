@@ -632,7 +632,7 @@ class RN34SimulationData:
                 "source": source,
                 "second_order_tensor": permeability,
                 "mass_weight": porosity * water_compressibility * specific_volume,
-                "biot_alpha": self.biot_alpha(g),
+                "biot_alpha": self.biot_alpha(gb, g),
                 "time_step": time_step,
                 "ambient_dimension": Nd,
                 "vector_source": vector_source,
@@ -767,8 +767,11 @@ class RN34SimulationData:
             "cell": inj_cell,
         }
 
-    def biot_alpha(self, g):
-        return 0.8
+    def biot_alpha(self, gb, g):
+        if g.dim == gb.dim_max():
+            return 0.8
+        else:
+            return 1
 
     def set_mechanics_parameters(self, gb, time_step):
         """ Set fault friction coefficients, elastic moduli
