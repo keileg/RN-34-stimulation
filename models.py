@@ -1472,10 +1472,18 @@ class BiotMechanicsModel(ContactMechanicsBiot):
             else:
                 source_vec = 0 * np.zeros(g.num_cells)
 
-            d[pp.PARAMETERS][self.scalar_parameter_key]["source"] += source_vec
+            d[pp.PARAMETERS][self.scalar_parameter_key]["source"] = source_vec
 
     def initial_condition(self):
         super().initial_condition()
+
+        rho_g = pp.GRAVITY_ACCELERATION * pp.Water().density() / self.scalar_scale
+
+        for g, d in self.gb:
+            # Initialize the pressure to hydrostatic
+            initial_scalar_value = -rho_g * g.cell_centers[2]
+            d[pp.STATE].update({self.scalar_variable: initial_scalar_value})
+
         self.store_contact_state(prefix="reference")
         self.store_contact_state(prefix="previous")
 
