@@ -429,7 +429,7 @@ class RN34SimulationData:
 
         return bc
 
-    def bc_values_flow(self, g, gb, gravity):
+    def bc_values_flow(self, g, gb, gravity, time_step):
         """ Set values for flow boundary conditions: 0 at top and bottom, hydrostatic
         at lateral sides.
         """
@@ -451,8 +451,11 @@ class RN34SimulationData:
                         fz[side]
                         * pp.Water().density()
                         * pp.GRAVITY_ACCELERATION
+                        # The pressure is divided by force_scale throughout
                         / self.force_scale
-                        / self.time_step
+                        # Divide by time step to compensate for the dt scaling in
+                        # ImplicitMpfa.
+                        / time_step
                     )
             return values
 
@@ -624,7 +627,7 @@ class RN34SimulationData:
 
             # Set boundary values and conditions
             bc = self.bc_type_flow(g, gb)
-            bc_val = self.bc_values_flow(g, gb, gravity)
+            bc_val = self.bc_values_flow(g, gb, gravity, time_step)
 
             # Initialize flow problem
             specified_parameters = {
