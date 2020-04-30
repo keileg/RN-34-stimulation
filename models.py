@@ -1545,30 +1545,10 @@ class BiotMechanicsModel(ContactMechanicsBiot):
 
         self.set_export()
 
-    def after_newton_iteration(self, solution_vector):
-        # self.update_all_apertures(to_iterate=True)
-        # Depending on what we do with aperture updates, we may have to do something here.
-        self.update_state(solution_vector)
-        # self.assembler.discretize(term_filter=self.friction_coupling_term)
-
     def after_newton_convergence(self, solution, errors, iteration_counter):
         self.assembler.distribute_variable(solution)
         self.save_mechanical_bc_values()
         self.export_step()
-
-    def after_newton_failure(self, solution, errors, iteration_counter):
-
-        if self.time_step > self.min_time_step:
-            # Simple cutting of time steps if Newton failure. This has never been used
-            # in practice.
-            logger.info(f"Time step failed. Cut time step to ")
-            self.time -= self.time_step
-            self.time_step /= 2
-
-        else:
-            raise ValueError(
-                "Newton iterations failed. Cannot decrease time step further"
-            )
 
     def before_newton_loop(self):
         # Set new parameters. This will also adjust the source term
@@ -1603,25 +1583,3 @@ class BiotMechanicsModel(ContactMechanicsBiot):
             return spla.spsolve(A, b)
         elif self.linear_solver == "iterative":
             raise ValueError("Not available.")
-
-    def initialize_linear_solver(self):
-
-        solver = self.params.get("linear_solver", "direct")
-        self.linear_solver = solver
-
-        if solver == "direct":
-            """ In theory, it should be possible to instruct SuperLU to reuse the
-            symbolic factorization from one iteration to the next. However, it seems
-            the scipy wrapper around SuperLU has not implemented the necessary
-            functionality, as discussed in
-
-                https://github.com/scipy/scipy/issues/8227
-
-            We will therefore pass here, and pay the price of long computation times.
-            """
-            pass
-
-        elif solver == "iterative":
-            raise ValueError("Not available.")
-        else:
-            raise ValueError("unknown linear solver " + solver)
