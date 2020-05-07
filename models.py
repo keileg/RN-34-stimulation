@@ -1443,25 +1443,25 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         # Set flow parameters
         self.sim_data.set_flow_parameters(self.gb, self.time_step)
 
-        # Finally, set the parameters for the poro-elastic coupling terms, and the sources
+        # Finally, set the parameters for the sources
+
+        # Special treatment of the source term
+        # The scalar source alternates between high for 60 minutes and low for 30 minutes.
+        length_cycle = 60 * pp.MINUTE + 30 * pp.MINUTE
+
+        rest_time = self.time % length_cycle
+        if self.time > 10 * pp.HOUR:
+            rate = 0
+        elif rest_time < 60 * pp.MINUTE:
+            # This is safe also for the initialization, as both the high and low
+            # rate is zero in that stage.
+            rate = self.high_rate
+        else:
+            rate = self.low_rate
+
+        logger.info(f"Injection rate set to {rate}")
+
         for g, d in self.gb:
-
-            # Special treatment of the source term
-            # The scalar source alternates between high for 60 minutes and low for 30 minutes.
-            length_cycle = 60 * pp.MINUTE + 30 * pp.MINUTE
-
-            rest_time = self.time % length_cycle
-            # I'd prefer to move all RN specific stuff to the data class. As mentioned above, this is
-            # just a source_scalar() which depends on self.time
-            if self.time > 10 * pp.HOUR:
-                rate = 0
-            elif rest_time < 60 * pp.MINUTE:
-                # This is safe also for the initialization, as both the high and low
-                # rate is zero in that stage.
-                rate = self.high_rate
-            else:
-                rate = self.low_rate
-
             if g.dim == 2:
                 source_vec = 0 * np.zeros(g.num_cells)
                 hit = np.where(self.well_data["fracture"] == g.frac_num)[0]
