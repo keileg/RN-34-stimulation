@@ -464,7 +464,7 @@ class RN34SimulationData:
         Define the permeability, apertures, boundary conditions and sources.
         """
         # Values for matrix permeability, porosity
-        matrix_permeability = 1e-13
+        matrix_permeability = 5e-13
         matrix_porosity = 0.1
 
         fracture_porosity = 1
@@ -498,7 +498,7 @@ class RN34SimulationData:
             2: 1.0 * pp.CENTIMETER,
             3: 1.0 * pp.CENTIMETER,
             4: 1.0 * pp.CENTIMETER,
-            5: 1 * pp.MILLI * pp.METER,
+            5: 1.0 * pp.CENTIMETER,
         }
 
         # Index of blocking fracture
@@ -516,7 +516,7 @@ class RN34SimulationData:
 
             if frac_num == BLOCKING_FRACTURE_INDEX:
                 # Explicitly set low permeability for fracture number 5
-                kxx = 1e-3 * matrix_permeability
+                kxx = 1e-5 * matrix_permeability
             else:
                 # Permeability by parallel plate model
                 kxx = np.power(aperture, 2) / 12
