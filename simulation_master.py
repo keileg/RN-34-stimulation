@@ -33,35 +33,30 @@ class Simulator:
         # direction. The 2d mesh is the same for all cases. In the vertical direction,
         # the grid is refined around the depths where injection takes place.
         # Case 3 is used for the simulations reported in the paper, however, grids with
-        # lower resolution is useful for experimentation runs.
-        case = 0
+        # lower resolution are useful for experimentation runs.
+        case = 1
 
         if case == 0:
             self.z_coord = np.array([0, -100, -1500, -2200, -3000, -4000])
         elif case == 1:
             self.z_coord = np.array(
-                [0, -1000, -1500, -1800, -2100, -2400, -2700, -3000, -3500, -4000, -4500, -5000, -6000]
+                [0, -1000, -1500, -1800, -2100, -2400, -2700, -3000, -3500, -4000]
             )
         elif case == 2:
             self.z_coord = np.array(
                 [
                     0,
-                    -100,
                     -500,
-                    -800,
-                    -1100,
-                    -1400,
-                    -1700,
+                    -1000,
+                    -1500,
                     -1900,
-                    -2100,
                     -2200,
-                    -2300,
                     -2400,
                     -2500,
                     -2600,
                     -2700,
                     -3000,
-                    -3300,
+                    -3500,
                     -4000,
                 ]
             )
@@ -209,7 +204,7 @@ if __name__ == "__main__":
     # is consistent. On a more detailed level, the simulated and measured pressure are
     # not in agreement - for this, a more elaborate parameter calibration would have
     # been needed, but this was deemed not warrented given the scarcity of data.
-    sim.simulate_leak_off_test()
+#    sim.simulate_leak_off_test()
 
     # Initialize the poro-mechanical simulation. This simulates the poro-mechanical
     # system to steady state, using zero injection rate, but with the remaining
