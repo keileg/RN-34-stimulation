@@ -16,6 +16,8 @@ is standard terminology in simulation development. Please bear with us.
 import numpy as np
 import porepy as pp
 import logging
+import pickle
+import os
 
 from models import FlowModel, BiotMechanicsModel
 
@@ -113,7 +115,9 @@ class Simulator:
         # Create a flow
         solver = FlowModel(self._standard_parameters())
 
-        target = solver.calibration_run(return_values=True, do_plot=False, do_export=False)
+        target = solver.calibration_run(
+            return_values=True, do_plot=False, do_export=False
+        )
         print("Found the target value to be:", target)
 
         logger.setLevel(logging.INFO)
@@ -171,10 +175,16 @@ class Simulator:
         poro_model.init_time_step = time_step
         poro_model.end_time = 10.5 * pp.HOUR
 
-        poro_model.export_folder = "march_29"
+        export_folder = "march_29"
+
+        poro_model.export_folder = export_folder
         poro_model.export_file_name = "stimulation"
         poro_model.prev_export_time = 0
         poro_model.set_export()
+
+        if not os.path.exists(export_folder):
+            os.mkdir(export_folder)
+        pickle.dump(poro_model.gb, open(export_folder + "/grid_bucket.grid", "wb"))
 
         pp.run_time_dependent_model(
             poro_model,
@@ -196,7 +206,7 @@ if __name__ == "__main__":
 
     # Initialize simulation object
     sim = Simulator()
-    
+
     # Simulate the leak-off test on the morning of 29 March 2015. This is mainly done
     # to check that the difference in pressure (measured at the injection cell, which
     # is presumed to be proportional to the observed pressure at the measurement point
@@ -204,7 +214,7 @@ if __name__ == "__main__":
     # is consistent. On a more detailed level, the simulated and measured pressure are
     # not in agreement - for this, a more elaborate parameter calibration would have
     # been needed, but this was deemed not warrented given the scarcity of data.
-#    sim.simulate_leak_off_test()
+    #    sim.simulate_leak_off_test()
 
     # Initialize the poro-mechanical simulation. This simulates the poro-mechanical
     # system to steady state, using zero injection rate, but with the remaining
