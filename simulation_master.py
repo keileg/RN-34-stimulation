@@ -168,7 +168,7 @@ class Simulator:
         # Switch on the sources
         poro_model.activate_sources()
 
-        time_step = 5 * pp.MINUTE
+        time_step = 15 * pp.MINUTE
 
         poro_model.time = 0
         poro_model.set_time_step(time_step)
@@ -214,7 +214,7 @@ if __name__ == "__main__":
     # is consistent. On a more detailed level, the simulated and measured pressure are
     # not in agreement - for this, a more elaborate parameter calibration would have
     # been needed, but this was deemed not warrented given the scarcity of data.
-    #    sim.simulate_leak_off_test()
+    sim.simulate_leak_off_test()
 
     # Initialize the poro-mechanical simulation. This simulates the poro-mechanical
     # system to steady state, using zero injection rate, but with the remaining
