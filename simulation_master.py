@@ -168,7 +168,7 @@ class Simulator:
         # Switch on the sources
         poro_model.activate_sources()
 
-        time_step = 15 * pp.MINUTE
+        time_step = 5 * pp.MINUTE
 
         poro_model.time = 0
         poro_model.set_time_step(time_step)
