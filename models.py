@@ -1452,7 +1452,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         rest_time = self.time % length_cycle
         if self.time > 10 * pp.HOUR:
             rate = 0
-        elif rest_time < 60 * pp.MINUTE:
+        elif rest_time < 60.01 * pp.MINUTE:
             # This is safe also for the initialization, as both the high and low
             # rate is zero in that stage.
             rate = self.high_rate
