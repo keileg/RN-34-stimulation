@@ -190,7 +190,7 @@ class Simulator:
             poro_model,
             {
                 "prepare_simulation": False,
-                "max_iterations": 100,
+                "max_iterations": 500,
                 "nl_convergence_tol": 1e-14,
             },
         )
