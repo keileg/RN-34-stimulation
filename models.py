@@ -517,7 +517,7 @@ class RN34SimulationData:
             if frac_num == BLOCKING_FRACTURE_INDEX:
                 # Explicitly set low permeability for fracture number 5
                 kxx = 1e-2 * matrix_permeability
-                #kxx = np.power(aperture, 2) / 12
+                # kxx = np.power(aperture, 2) / 12
             else:
                 # Permeability by parallel plate model
                 kxx = np.power(aperture, 2) / 12
@@ -1550,6 +1550,16 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         self.assembler.distribute_variable(solution)
         self.save_mechanical_bc_values()
         self.export_step()
+
+    def assign_discretizations(self):
+        super().assign_discretizations()
+        for e, d in self.gb.edges():
+            g_l, g_h = self.gb.nodes_of_edge(e)
+
+            if g_h.dim == self.Nd:
+                couplings = d[pp.COUPLING_DISCRETIZATION][self.friction_coupling_term]
+                contact_discr = couplings[(g_h, g_l)][1].discr_slave
+                contact_discr.tol = 1e-6
 
     def before_newton_loop(self):
         # Set new parameters. This will also adjust the source term
