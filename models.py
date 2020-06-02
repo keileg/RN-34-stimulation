@@ -254,10 +254,10 @@ class RN34SimulationData:
                     -fluid.density()
                     * pp.GRAVITY_ACCELERATION
                     * g.cell_centers[2]
-                    / self.scalar_scale
+                    / self.force_scale
                 )
                 d[pp.STATE]["hydrostatic_pressure"] = (
-                    hydrostatic_pressure / self.force_scale
+                    hydrostatic_pressure
                 )
 
             viz.write_vtk(
