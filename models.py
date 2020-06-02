@@ -223,6 +223,23 @@ class RN34SimulationData:
         logger.info(f"Generated extruded grid with {self.z_coord.size - 1} z-layers.")
         logger.info(f"Total number of cells in 3d grids is {g.num_cells}")
 
+        # Generate a FractureNetwork3d object for the full network - useful for
+        # visualization
+        z_min = self.z_coord.min()
+        frac_3d = []
+        for fi in range(edges.shape[1]):
+
+            p0 = frac_2d[:, edges[0, fi]]
+            p1 = frac_2d[:, edges[1, fi]]
+            p2 = np.hstack((p1, z_min))
+            p3 = np.hstack((p0, z_min))
+            p0 = np.hstack((p0, 0))
+            p1 = np.hstack((p1, 0))
+
+            frac_3d.append(pp.Fracture(np.vstack((p0, p1, p2, p3)).T))
+
+        network_3d = pp.FractureNetwork3d(frac_3d)
+        network_3d.to_vtk("fracture_network.vtu")
         return gb_3d
 
     def create_iceland_grid(self):
@@ -516,7 +533,7 @@ class RN34SimulationData:
 
             if frac_num == BLOCKING_FRACTURE_INDEX:
                 # Explicitly set low permeability for fracture number 5
-                #kxx = 1e-2 * matrix_permeability
+                # kxx = 1e-2 * matrix_permeability
                 kxx = np.power(aperture, 2) / 12
             else:
                 # Permeability by parallel plate model
@@ -671,7 +688,7 @@ class RN34SimulationData:
                 if close_to_barrier:
                     # Use aperture of the low-permeable fracture only
                     aperture = fracture_aperture_map[BLOCKING_FRACTURE_INDEX]
-                    #kt = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
+                    # kt = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
                     # Low normal diffusivity for the blocking fracture
                     kt = 1e-2 * matrix_permeability
                     kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
