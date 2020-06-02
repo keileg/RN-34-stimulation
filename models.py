@@ -121,7 +121,7 @@ class RN34SimulationData:
     def _well_coordinate_surface(self):
         return self._read_well_path()[0, 5:]
 
-    def _grid_by_extrusion(self):
+    def _grid_by_extrusion(self, grid_to_vtu=False):
         """
         Create a 3d simulation grid by first meshing a 2d domain, with the faults as
         line fractures, and extrude the mesh in the vertical direction.
@@ -223,30 +223,62 @@ class RN34SimulationData:
         logger.info(f"Generated extruded grid with {self.z_coord.size - 1} z-layers.")
         logger.info(f"Total number of cells in 3d grids is {g.num_cells}")
 
-        # Generate a FractureNetwork3d object for the full network - useful for
-        # visualization
-        z_min = self.z_coord.min()
-        frac_3d = []
-        for fi in range(edges.shape[1]):
+        if grid_to_vtu:
+            # Generate a FractureNetwork3d object for the full network - useful for
+            # visualization
+            z_min = self.z_coord.min()
+            frac_3d = []
+            for fi in range(edges.shape[1]):
 
-            p0 = frac_2d[:, edges[0, fi]]
-            p1 = frac_2d[:, edges[1, fi]]
-            p2 = np.hstack((p1, z_min))
-            p3 = np.hstack((p0, z_min))
-            p0 = np.hstack((p0, 0))
-            p1 = np.hstack((p1, 0))
+                p0 = frac_2d[:, edges[0, fi]]
+                p1 = frac_2d[:, edges[1, fi]]
+                p2 = np.hstack((p1, z_min))
+                p3 = np.hstack((p0, z_min))
+                p0 = np.hstack((p0, 0))
+                p1 = np.hstack((p1, 0))
 
-            frac_3d.append(pp.Fracture(np.vstack((p0, p1, p2, p3)).T))
+                frac_3d.append(pp.Fracture(np.vstack((p0, p1, p2, p3)).T))
 
-        network_3d = pp.FractureNetwork3d(frac_3d)
-        network_3d.to_vtk("fracture_network.vtu")
+            network_3d = pp.FractureNetwork3d(frac_3d)
+            network_3d.to_vtk("fracture_network.vtu")
+
+            viz = pp.Exporter(gb_3d, "grid_information")
+            fluid = pp.Water()
+            for g, d in gb_3d:
+                d[pp.STATE] = {}
+                d[pp.STATE]["cell_center_x"] = g.cell_centers[0]
+                d[pp.STATE]["cell_center_y"] = g.cell_centers[1]
+                d[pp.STATE]["cell_center_z"] = g.cell_centers[2]
+
+                hydrostatic_pressure = (
+                    -fluid.density()
+                    * pp.GRAVITY_ACCELERATION
+                    * g.cell_centers[2]
+                    / self.scalar_scale
+                )
+                d[pp.STATE]["hydrostatic_pressure"] = (
+                    hydrostatic_pressure / self.force_scale
+                )
+
+            viz.write_vtk(
+                data=[
+                    "cell_center_x",
+                    "cell_center_y",
+                    "cell_center_z",
+                    "hydrostatic_pressure",
+                ]
+            )
+
+            for g, d in gb_3d:
+                d[pp.STATE] = {}
+
         return gb_3d
 
-    def create_iceland_grid(self):
+    def create_iceland_grid(self, grid_to_vtu=False):
         """ Create the 3d mixed-dimensional grid, set projections needed for contact
         mechanics calculations
         """
-        gb = self._grid_by_extrusion()
+        gb = self._grid_by_extrusion(grid_to_vtu)
 
         # Set projections to local coordinates for all fractures
         pp.contact_conditions.set_projections(gb)
@@ -1553,7 +1585,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
         """ Is run prior to a time-stepping scheme. Use this to initialize
         discretizations, linear solvers etc.
         """
-        self.gb = self.sim_data.create_iceland_grid()
+        self.gb = self.sim_data.create_iceland_grid(grid_to_vtu=True)
         self.Nd = self.gb.dim_max()
         self.well_data = self.sim_data.sources(self.gb)
         self.set_parameters()
