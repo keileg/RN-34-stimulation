@@ -513,7 +513,7 @@ class RN34SimulationData:
         Define the permeability, apertures, boundary conditions and sources.
         """
         # Values for matrix permeability, porosity
-        matrix_permeability = 1e-12
+        matrix_permeability = 1e-11
         matrix_porosity = 0.1
 
         fracture_porosity = 1
@@ -565,8 +565,8 @@ class RN34SimulationData:
 
             if frac_num == BLOCKING_FRACTURE_INDEX:
                 # Explicitly set low permeability for fracture number 5
-                # kxx = 1e-2 * matrix_permeability
-                kxx = np.power(aperture, 2) / 12
+                kxx = 1e-2 * matrix_permeability
+                #kxx = np.power(aperture, 2) / 12
             else:
                 # Permeability by parallel plate model
                 kxx = np.power(aperture, 2) / 12
@@ -722,7 +722,7 @@ class RN34SimulationData:
                     aperture = fracture_aperture_map[BLOCKING_FRACTURE_INDEX]
                     # kt = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
                     # Low normal diffusivity for the blocking fracture
-                    kt = 1e-2 * matrix_permeability
+                   # kt = 1e-2 * matrix_permeability
                     kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
 
                 else:
@@ -917,7 +917,9 @@ class RN34SimulationData:
                     g,
                     d,
                     self.mechanics_parameter_key,
-                    {"friction_coefficient": friction, "time_step": time_step},
+                    {"friction_coefficient": friction,
+                     "time_step": time_step,
+                     "contact_mechanics_numerical_parameter": 1e0},
                 )
 
         for _, d in gb.edges():
@@ -1610,7 +1612,7 @@ class BiotMechanicsModel(ContactMechanicsBiot):
             if g_h.dim == self.Nd:
                 couplings = d[pp.COUPLING_DISCRETIZATION][self.friction_coupling_term]
                 contact_discr = couplings[(g_h, g_l)][1].discr_slave
-                contact_discr.tol = 1e-6
+                contact_discr.tol = 1e-4
 
     def before_newton_loop(self):
         # Set new parameters. This will also adjust the source term
