@@ -256,9 +256,7 @@ class RN34SimulationData:
                     * g.cell_centers[2]
                     / self.force_scale
                 )
-                d[pp.STATE]["hydrostatic_pressure"] = (
-                    hydrostatic_pressure
-                )
+                d[pp.STATE]["hydrostatic_pressure"] = hydrostatic_pressure
 
             viz.write_vtk(
                 data=[
@@ -512,8 +510,14 @@ class RN34SimulationData:
         """
         Define the permeability, apertures, boundary conditions and sources.
         """
-        # Values for matrix permeability, porosity
-        matrix_permeability = 1e-11
+        fracture_5_blocking_tangential = False
+        fracture_5_blocking_normal = True
+
+        if fracture_5_blocking_normal:  # Case B or C
+            matrix_permeability = 1e-11
+        else:  # Case A
+            matrix_permeability = 1e-12
+
         matrix_porosity = 0.1
 
         fracture_porosity = 1
@@ -564,9 +568,11 @@ class RN34SimulationData:
             specific_volume = aperture
 
             if frac_num == BLOCKING_FRACTURE_INDEX:
-                # Explicitly set low permeability for fracture number 5
-                kxx = 1e-2 * matrix_permeability
-                #kxx = np.power(aperture, 2) / 12
+                # Set tangential permeability for the low permeable fracture
+                if fracture_5_blocking_tangential:
+                    kxx = 1e-2 * matrix_permeability
+                else:
+                    kxx = np.power(aperture, 2) / 12
             else:
                 # Permeability by parallel plate model
                 kxx = np.power(aperture, 2) / 12
@@ -704,7 +710,19 @@ class RN34SimulationData:
                 # This is a fracture-matrix interface
                 # Set the normal permeability from the tangential one
                 aperture = fracture_aperture_map[g_l.frac_num]
-                kt = fracture_permeability_map[g_l.frac_num]
+
+                if (
+                    g_l.frac_num == BLOCKING_FRACTURE_INDEX
+                    and fracture_5_blocking_normal
+                ):
+                    # We don't know if the tangential permeability of this fracture is
+                    # blocking or not. Set a blocking value for kt instead of pulling
+                    # it from the fracture_permeability_map
+                    kt = 1e-2 * matrix_permeability
+                else:
+                    # Pull tangential permeability from the map
+                    kt = fracture_permeability_map[g_l.frac_num]
+
                 kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
 
             else:
@@ -720,9 +738,13 @@ class RN34SimulationData:
                 if close_to_barrier:
                     # Use aperture of the low-permeable fracture only
                     aperture = fracture_aperture_map[BLOCKING_FRACTURE_INDEX]
-                    # kt = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
+
                     # Low normal diffusivity for the blocking fracture
-                   # kt = 1e-2 * matrix_permeability
+                    if fracture_5_blocking_normal:
+                        kt = 1e-2 * matrix_permeability
+                    else:
+                        kt = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
+
                     kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
 
                 else:
@@ -917,9 +939,11 @@ class RN34SimulationData:
                     g,
                     d,
                     self.mechanics_parameter_key,
-                    {"friction_coefficient": friction,
-                     "time_step": time_step,
-                     "contact_mechanics_numerical_parameter": 1e0},
+                    {
+                        "friction_coefficient": friction,
+                        "time_step": time_step,
+                        "contact_mechanics_numerical_parameter": 1e0,
+                    },
                 )
 
         for _, d in gb.edges():
