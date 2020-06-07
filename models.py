@@ -510,7 +510,7 @@ class RN34SimulationData:
         """
         Define the permeability, apertures, boundary conditions and sources.
         """
-        fracture_5_blocking_tangential = False
+        fracture_5_blocking_tangential = True
         fracture_5_blocking_normal = True
 
         if fracture_5_blocking_normal:  # Case B or C
