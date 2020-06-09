@@ -512,6 +512,7 @@ class RN34SimulationData:
         """
         fracture_5_blocking_tangential = True
         fracture_5_blocking_normal = True
+        blocking_factor = 1e0
 
         if fracture_5_blocking_normal:  # Case B or C
             matrix_permeability = 1e-11
@@ -570,7 +571,7 @@ class RN34SimulationData:
             if frac_num == BLOCKING_FRACTURE_INDEX:
                 # Set tangential permeability for the low permeable fracture
                 if fracture_5_blocking_tangential:
-                    kxx = 1e-2 * matrix_permeability
+                    kxx = blocking_factor * matrix_permeability
                 else:
                     kxx = np.power(aperture, 2) / 12
             else:
@@ -718,7 +719,7 @@ class RN34SimulationData:
                     # We don't know if the tangential permeability of this fracture is
                     # blocking or not. Set a blocking value for kt instead of pulling
                     # it from the fracture_permeability_map
-                    kt = 1e-2 * matrix_permeability
+                    kt = blocking_factor * matrix_permeability
                 else:
                     # Pull tangential permeability from the map
                     kt = fracture_permeability_map[g_l.frac_num]
@@ -741,7 +742,7 @@ class RN34SimulationData:
 
                     # Low normal diffusivity for the blocking fracture
                     if fracture_5_blocking_normal:
-                        kt = 1e-2 * matrix_permeability
+                        kt = blocking_factor * matrix_permeability
                     else:
                         kt = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
 
