@@ -510,11 +510,22 @@ class RN34SimulationData:
         """
         Define the permeability, apertures, boundary conditions and sources.
         """
-        fracture_5_blocking_tangential = True
-        fracture_5_blocking_normal = True
-        blocking_factor = 1e0
+        # Flag for setting the blocking fracture neutral; it should have no impact on
+        # the flow.
+        fracture_5_neutral = True
+        # Flag for setting a low tangential permeability in the blocking fracture. Will
+        # only be activated if the blocking fracture is not neutral.
+        fracture_5_blocking_tangential = False
+        # Flag for setting a low normal permeability in the blocking fracture. Will
+        # only be activated if the blocking fracture is not neutral.
+        fracture_5_blocking_normal = False
+        # Permeability reduction in the blocking fracture. Will only be used if the
+        # blocking fracture is not neutral.
+        blocking_factor = 1e-2
 
-        if fracture_5_blocking_normal:  # Case B or C
+        if fracture_5_neutral:
+            matrix_permeability = 2e-12
+        elif fracture_5_blocking_normal:  # Case B or C
             matrix_permeability = 1e-11
         else:  # Case A
             matrix_permeability = 1e-12
@@ -564,15 +575,23 @@ class RN34SimulationData:
         # its 2d neighbor.
         fracture_permeability_map = {}
 
+        # NOTE: This loop assigns permeability (scaling of length^2). In the final
+        # parameter assignment (next for-loop), the permeability values are scaled with
+        # apertures (see factor 'specific_volume'). This renders the standard cubic law
+        # for open fractures.
         for frac_num, aperture in fracture_aperture_map.items():
             # The specific volume of a fracture equals its aperture
             specific_volume = aperture
 
             if frac_num == BLOCKING_FRACTURE_INDEX:
-                # Set tangential permeability for the low permeable fracture
-                if fracture_5_blocking_tangential:
+                # If the blocking fracture is neutral, assign the matrix permeability
+                if fracture_5_neutral:
+                    kxx = matrix_permeability
+                # Assign reduced tangential permeability if flag assigned
+                elif fracture_5_blocking_tangential:
                     kxx = blocking_factor * matrix_permeability
                 else:
+                    # Default is standard parallel plate model
                     kxx = np.power(aperture, 2) / 12
             else:
                 # Permeability by parallel plate model
@@ -586,7 +605,6 @@ class RN34SimulationData:
         # to the corresponding dictionaries for fractures, which use numbers so that
         # they are available without access to the fracture grid).
         intersection_aperture_map, intersection_permeability_map = {}, {}
-
         fluid = pp.Water()
 
         # Loop over all grids in the bucket, populate the parameter dictionary
@@ -645,10 +663,14 @@ class RN34SimulationData:
                 # Specific volume is the product of neighboring apertures.
                 specific_volume = np.power(aperture, gb.dim_max() - g.dim)
 
-                if close_to_barrier:
+                # For intersections with the blocking fracture, we inherit the
+                # permeability from this object. This will ensure that a blocking
+                # fracture also has blocking intersections.
+                # The exception is if the blocking fracture is decleared neutral, in
+                # which case the intersections with fracture 5 gets no special treatment
+                if close_to_barrier and not fracture_5_neutral:
                     # The permeability is inherited from the barrier fracture, no 5
                     kxx = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
-
                 else:
                     # Standard permeability calculation
                     kxx = np.power(aperture, 2) / 12
@@ -712,8 +734,10 @@ class RN34SimulationData:
                 # Set the normal permeability from the tangential one
                 aperture = fracture_aperture_map[g_l.frac_num]
 
+                # Set special value for the blocking fracture unless it is neutral
                 if (
                     g_l.frac_num == BLOCKING_FRACTURE_INDEX
+                    and not fracture_5_neutral
                     and fracture_5_blocking_normal
                 ):
                     # We don't know if the tangential permeability of this fracture is
@@ -736,19 +760,24 @@ class RN34SimulationData:
                     if gb.nodes_of_edge(e2)[1].frac_num == BLOCKING_FRACTURE_INDEX:
                         close_to_barrier = True
 
-                if close_to_barrier:
+                # Special treatment if the intersection line involves the blocking
+                # fracture, this is  not set to neutral and it should have a blocking
+                # normal permeability.
+                # it will get special treatment
+                if (
+                    close_to_barrier
+                    and (not fracture_5_neutral)
+                    and fracture_5_blocking_normal
+                ):
                     # Use aperture of the low-permeable fracture only
                     aperture = fracture_aperture_map[BLOCKING_FRACTURE_INDEX]
-
-                    # Low normal diffusivity for the blocking fracture
-                    if fracture_5_blocking_normal:
-                        kt = blocking_factor * matrix_permeability
-                    else:
-                        kt = fracture_permeability_map[BLOCKING_FRACTURE_INDEX]
-
+                    # Set normal diffusivity from the matrix permeability if this is
+                    # specified
+                    kt = blocking_factor * matrix_permeability
                     kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
 
                 else:
+                    # Set normal permeability from the 1d tangential permeability
                     aperture = intersection_aperture_map[g_l]
                     kt = intersection_permeability_map[g_l]
                     kn = kt / (0.5 * aperture) * np.ones(mg.num_cells)
