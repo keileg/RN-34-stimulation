@@ -1,9 +1,24 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Thu Jun  6 08:53:28 2019
+This module defines the simulation setup (including parameters, governing equations
+and numerical methods) for the simulations. The model contains three classes:
 
-@author: eke001
+RN34SimulationData:
+    This is the class which specifies problem geometry and all parameters.
+    The two model classes (below) takes the data specification from this class.
+
+FlowModel:
+    This model provides simulations of single phase flow. Specifically, the model
+    is set up to replicate a fall-off test in the well RN-34 that was run in
+    the morning of March 29, 2015, that is, prior to the hydraulic stimulation.
+    
+BiotMechanicsModel:
+    This class gives a poro-mechanical simulation of the reservoir around the well
+    RN-34. It is used both for initialization of the model, and simulation of the
+    March 29 stimulation experiment.
+
+NOTE: To experiment with different scenarios for formation and fault permeability,
+    modify the function set_flow_parameters() in the class RN34SimulationData.
+
 """
 
 import numpy as np
