@@ -34,8 +34,8 @@ class Simulator:
         # Different grid realizations with increasing resolution in the vertical
         # direction. The 2d mesh is the same for all cases. In the vertical direction,
         # the grid is refined around the depths where injection takes place.
-        # Case 3 is used for the simulations reported in the paper, however, grids with
-        # lower resolution are useful for experimentation runs.
+        # Case 1 is used for the simulations reported in the paper, however, grids with
+        # different resolution were used for experimentation runs.
         case = 1
 
         if case == 0:
